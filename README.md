@@ -50,7 +50,7 @@ make demo
 To launch the complete suite of tests, launch the following command:
 ```bash
 uv sync --package hydrostatic
-uv run pytest package/hydrostatic/tests
+uv run pytest packages/hydrostatic/tests
 ```
 Alternatively, if you have make install, just run:
    ```bash
