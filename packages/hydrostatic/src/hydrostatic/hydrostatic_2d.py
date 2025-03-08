@@ -1,6 +1,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
+from typing import Any
 
 import numpy as np
 from scipy.optimize import bisect
@@ -21,8 +22,46 @@ def close_curve(curve_points: list[list[float]]) -> list[list[float]]:
             pass
         else:
             curve_points.append(curve_points[0])
-    return curve_points
+    return suppress_duplicated_neighbours(curve_points)
 
+def suppress_duplicated_neighbours(elems: list[Any]) -> list[Any]:
+    """
+    Ensure there is no useless duplicated neighbor in list
+    Args:
+        elems (list[Any]): list without duplicated neighbour
+
+    Returns:
+        list[Any]: list with no duplicated neighbour
+    """
+    if elems:
+        res = [elems[0]]
+        for i, c in enumerate(elems[1:]):
+            if c != elems[i]:
+                res.append(c)
+    else:
+        res=[]
+    return res
+
+def join_polygons(polygons: list[list[list[float]]]):
+
+    """
+    First close polygon if not
+    Then join polygon from last to first point of next polygon
+    Then close from last point of last polygon
+
+    Warning: polygons must be oriented in the same direction (clockwise or anticlockwise) to sum up
+    Polygon oriented differently can be used to make hollow part.
+
+    Args:
+        polygons(list[list[list[float]]]): list of polygons
+
+    Returns:
+        list[list[list[float]]]: merged polygon
+    """
+    sum = []
+    for polygon in polygons:
+        sum.extend(close_curve(polygon))
+    return close_curve(sum)
 
 def compute_submerged_points_and_segments(
     curve_points: list[list[float]],
@@ -280,7 +319,8 @@ def compute_righting_arm(
             cx,
             cy + metacentric_radius,
             marker="o",
-            markerfacecolor="red",
+            markerfacecolor="green",
+            color="green",
             label="Metacenter",
         )
         plt.plot(
@@ -288,6 +328,7 @@ def compute_righting_arm(
             center_of_gravity[1] - draft_offset_equilibrium,
             marker="o",
             markerfacecolor="red",
+            color="red",
             label="Center of gravity",
         )
         left, right = plt.gca().get_xlim()

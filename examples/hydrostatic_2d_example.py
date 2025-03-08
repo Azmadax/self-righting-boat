@@ -6,10 +6,20 @@ from geomdl import NURBS
 
 from hydrostatic.hydrostatic_2d import (
     close_curve,
-    find_equilibrium_points,
+    find_equilibrium_points, join_polygons,
 )
-from hydrostatic.sample_boats_2d import generate_circular_boat
+from hydrostatic.sample_boats_2d import generate_circular_boat, generate_arch_boat, generate_arch_boat_inner_outer
 from mouse_interaction import get_mouse_clicks
+
+print("Demo arch boat")
+curve_points, center_of_gravity = generate_arch_boat_inner_outer()
+target_area = 6
+eq = find_equilibrium_points(
+    curve_points=curve_points,
+    center_of_gravity=center_of_gravity,
+    target_area=target_area,
+    plot=True,
+)
 
 # Duplicated first point in last position to get a polygon
 input_curve_points, _ = generate_circular_boat()
@@ -24,19 +34,21 @@ eq = find_equilibrium_points(
 )
 
 print("Demo catamaran")
-
-curve_points = [
+hull_left = [
     [-1, -1],
     [-2, -1],
     [-2, -2],
-    [-1, -2],
-    [-1, -1],
+    [-1, -2]]
+hull_right =[
     [1, -1],
     [1, -2],
     [2, -2],
-    [2, -1],
-    [1, -1],
-]
+    [2, -1]
+    ]
+curve_points= join_polygons([hull_left, hull_right])
+
+
+
 center_of_gravity = [0, 0]
 # Duplicated first point in last position to get a polygon
 curve_points = close_curve(curve_points)

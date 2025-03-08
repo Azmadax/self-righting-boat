@@ -15,10 +15,29 @@ from hydrostatic.hydrostatic_2d import (
     find_equilibrium_points,
     compute_submerged_points_and_segments,
     compute_flotation_segments_inertia,
-    compute_area_and_centroid,
+    compute_area_and_centroid, suppress_duplicated_neighbours, join_polygons,
 )
 from hydrostatic.sample_boats_2d import generate_circular_boat
 
+
+def test_suppress_duplicated_points_in_curve():
+    assert suppress_duplicated_neighbours([])==[]
+    assert suppress_duplicated_neighbours([1,1,2])==[1,2]
+    assert suppress_duplicated_neighbours([[1,1], [1,1], [2,0], [1,1]]) == [[1,1], [2,0], [1,1]]
+
+def test_join_polygons():
+    hull_left = [
+        [-1, -1],
+        [-2, -1],
+        [-2, -2],
+        [-1, -2]]
+    hull_right = [
+        [1, -1],
+        [1, -2],
+        [2, -2],
+        [2, -1]
+    ]
+    assert join_polygons([hull_left, hull_right])==[[-1, -1], [-2, -1], [-2, -2], [-1, -2], [-1, -1], [1, -1], [1, -2], [2, -2], [2, -1], [1, -1], [-1, -1]]
 
 def test_computed_submerged_points_no_points_below_zero():
     """Test when there are no points below y=0."""
