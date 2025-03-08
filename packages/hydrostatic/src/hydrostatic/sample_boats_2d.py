@@ -181,29 +181,6 @@ def generate_square_boat() -> tuple[list[tuple[float, float]], tuple[float, floa
 
 
 if __name__ == "__main__":
-    # outer_curve_points, inner_curve_points, center_of_gravity = generate_boat_arch_inner_outer()
-    #
-    # # Extraire les coordonnées
-    # outer_x, outer_y = zip(*outer_curve_points)
-    # inner_x, inner_y = zip(*inner_curve_points)
-    #
-    # # Remplissage extérieur
-    # plt.fill(outer_x, outer_y, color="gray", alpha=0.5)
-    #
-    # # Trou intérieur (en blanc)
-    # plt.fill(inner_x, inner_y, color="white")
-    #
-    # # Tracer les contours
-    # plt.plot(outer_x, outer_y, "k-", label="Outer Shape")
-    # plt.plot(inner_x, inner_y, "r-", label="Inner Arch (Hollow)")
-    #
-    # plt.axis("equal")
-    # plt.legend()
-    # plt.xlabel("X [m]")
-    # plt.ylabel("Y [m]")
-    # plt.title("Boat Shape with Hollow Arch")
-    # plt.grid()
-    # plt.show()
     for method in [generate_arch_boat_inner_outer, generate_arch_boat, generate_circular_boat, generate_square_boat]:
         # Generate boat shape and CG
         boat_points, center_of_gravity = method()
