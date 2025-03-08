@@ -21,6 +21,7 @@ from hydrostatic.sample_boats_2d import generate_circular_boat
 
 
 def test_suppress_duplicated_points_in_curve():
+    assert suppress_duplicated_neighbours([])==[]
     assert suppress_duplicated_neighbours([1,1,2])==[1,2]
     assert suppress_duplicated_neighbours([[1,1], [1,1], [2,0], [1,1]]) == [[1,1], [2,0], [1,1]]
 

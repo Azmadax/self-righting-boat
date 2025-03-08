@@ -55,6 +55,7 @@ lint: ## Clean code or warn user
 	ruff check . --fix
 
 test: ## Launch test
+	uv sync --package hydrostatic
 	uv run pytest packages/hydrostatic/tests
 
 coverage: ## Launch coverage test

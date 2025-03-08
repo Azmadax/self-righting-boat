@@ -33,11 +33,13 @@ def suppress_duplicated_neighbours(elems: list[Any]) -> list[Any]:
     Returns:
         list[Any]: list with no duplicated neighbour
     """
-    res = [elems[0]]
-    for i, c in enumerate(elems[1:]):
-        if c != elems[i]:
-            res.append(c)
-
+    if elems:
+        res = [elems[0]]
+        for i, c in enumerate(elems[1:]):
+            if c != elems[i]:
+                res.append(c)
+    else:
+        res=[]
     return res
 
 def join_polygons(polygons: list[list[list[float]]]):

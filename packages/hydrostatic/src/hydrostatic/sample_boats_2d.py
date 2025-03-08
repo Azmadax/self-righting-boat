@@ -150,7 +150,7 @@ def generate_circular_boat() -> tuple[list[tuple[float, float]], tuple[float, fl
     ]
 
     # Center of gravity at the center of the circle
-    center_of_gravity = (0, draft_offset)
+    center_of_gravity = (0, -draft_offset)
 
     return circle_points, center_of_gravity
 
