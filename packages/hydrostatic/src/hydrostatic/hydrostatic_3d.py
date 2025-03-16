@@ -6,6 +6,12 @@ mesh = trimesh.Trimesh(vertices=[[0, 0, 0], [0, 0, 1], [0, 1, 0]],
 
 import trimesh
 from shapely.geometry import Polygon, MultiPolygon
+
+
+mesh = trimesh.load('../../tests/half_mini_alpha_wrap.stl', force='mesh')
+mesh.show()
+
+
 # https://github.com/mikedh/trimesh/issues/1350
 ext_polygon = Polygon([[0, 0], [0, 3], [3, 3], [3, 0]]) # exterior polygon
 int_polygon = Polygon([[1, 1], [2, 1], [2, 2], [1, 2]]) # interior polygon
@@ -17,6 +23,7 @@ vertices, f = trimesh.util.append_faces([i[0] for i in vf], [i[1] for i in vf])
 mesh = trimesh.Trimesh(vertices=[np.hstack((v, [0])) for v in vertices],
                        faces=f)
 mesh.show()
+
 
 # mesh = trimesh.creation.extrude_polygon
 #
