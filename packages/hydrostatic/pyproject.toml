@@ -6,8 +6,10 @@ readme = "README.md"
 requires-python = ">=3.10,<3.12"
 dependencies = [
     "matplotlib>=3.10.0",
+    "networkx>=3.4.2",
     "numpy==1.23.5",
     "pyglet==1.5.31",
+    "rtree>=1.4.0",
     "scipy>=1.14.0",
     "shapely>=2.0.7",
     "triangle>=20250106",
