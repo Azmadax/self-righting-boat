@@ -5,16 +5,16 @@ from scipy.optimize import minimize
 
 def shoelace_area(coords):
     """Computes the polygon area using the Shoelace theorem."""
-    x, y = coords.reshape(2, -1)  # Split into x and y
+    x, y = coords.reshape(2, -1)
     n = len(x)
     area = 0.5 * np.abs(np.sum(x * np.roll(y, -1) - y * np.roll(x, -1)))
     return -area  # Negative for maximization
 
 
-def circle_constraint(coords, R):
-    """Constraint: Each point must satisfy x^2 + y^2 = R^2."""
+def point_distance_constraint(i, coords, R):
+    """Ensures that each point remains within the circle's radius."""
     x, y = coords.reshape(2, -1)
-    return R ** 2 - (x ** 2 + y ** 2)
+    return R ** 2 - (x[i] ** 2 + y[i] ** 2)  # Must be >= 0
 
 
 def edge_intersects(p1, p2, q1, q2):
@@ -39,22 +39,18 @@ def edge_intersects(p1, p2, q1, q2):
     return 0 < t < 1 and 0 < u < 1  # True if segments intersect
 
 
-def non_crossing_constraint(coords):
+def segment_non_crossing_constraint(i, j, coords):
     """Ensures that edges do not cross."""
     x, y = coords.reshape(2, -1)
     n = len(x)
 
-    for i in range(n):
-        for j in range(i + 2, n):  # Avoid consecutive edges
-            if j == (i + 1) % n:  # Ignore adjacent edges
-                continue
+    if j == (i + 1) % n:  # Ignore adjacent edges
+        return 0  # No intersection
 
-            p1, p2 = (x[i], y[i]), (x[(i + 1) % n], y[(i + 1) % n])
-            q1, q2 = (x[j], y[j]), (x[(j + 1) % n], y[(j + 1) % n])
+    p1, p2 = (x[i], y[i]), (x[(i + 1) % n], y[(i + 1) % n])
+    q1, q2 = (x[j], y[j]), (x[(j + 1) % n], y[(j + 1) % n])
 
-            if edge_intersects(p1, p2, q1, q2):
-                return -1  # Intersection detected
-    return 0  # No intersections
+    return -1 if edge_intersects(p1, p2, q1, q2) else 0
 
 
 def optimize_polygon(n, R=1.0):
@@ -65,20 +61,28 @@ def optimize_polygon(n, R=1.0):
 
     # Lists to track optimization progress
     iteration_areas = []
-    iteration_constraints = []
+    iteration_distance_constraints = []
+    iteration_non_crossing_constraints = []
 
     def callback(coords):
         """Callback function to track optimization progress."""
         area = -shoelace_area(coords)
-        constraint_vals = np.abs(circle_constraint(coords, R)).sum()
+        distance_constraints = sum(abs(point_distance_constraint(i, coords, R)) for i in range(n))
+        non_crossing_constraints = sum(
+            abs(segment_non_crossing_constraint(i, j, coords)) for i in range(n) for j in range(i + 2, n))
+
         iteration_areas.append(area)
-        iteration_constraints.append(constraint_vals)
+        iteration_distance_constraints.append(distance_constraints)
+        iteration_non_crossing_constraints.append(non_crossing_constraints)
 
     # Constraints
-    constraints = [
-        {'type': 'ineq', 'fun': lambda coords: circle_constraint(coords, R)},
-        {'type': 'ineq', 'fun': non_crossing_constraint}  # Enforce non-crossing
-    ]
+    constraints = []
+    for i in range(n):
+        constraints.append({'type': 'ineq', 'fun': lambda coords, i=i: point_distance_constraint(i, coords, R)})
+    for i in range(n):
+        for j in range(i + 2, n):
+            constraints.append(
+                {'type': 'ineq', 'fun': lambda coords, i=i, j=j: segment_non_crossing_constraint(i, j, coords)})
 
     # Optimize
     result = minimize(shoelace_area, x0, constraints=constraints, method='SLSQP', callback=callback)
@@ -87,7 +91,7 @@ def optimize_polygon(n, R=1.0):
     optimized_coords = result.x.reshape(2, -1).T
 
     # Plot optimization progress
-    plot_optimization_progress(iteration_areas, iteration_constraints)
+    plot_optimization_progress(iteration_areas, iteration_distance_constraints, iteration_non_crossing_constraints)
 
     return optimized_coords, -result.fun
 
@@ -116,28 +120,31 @@ def plot_polygon(coords, R):
     plt.show()
 
 
-def plot_optimization_progress(areas, constraints):
-    """Plots the progress of the solver objective (area) and constraints."""
-    fig, ax1 = plt.subplots()
-    ax2 = ax1.twinx()
+def plot_optimization_progress(areas, distance_constraints, non_crossing_constraints):
+    """Plots the progress of the solver objective and constraints in separate subplots."""
+    fig, axs = plt.subplots(3, 1, figsize=(8, 12))
 
-    ax1.plot(areas, 'b-o', label='Maximized Area')
-    ax2.plot(constraints, 'r--o', label='Constraint Violation')
+    axs[0].plot(areas, 'b-o')
+    axs[0].set_title("Maximized Area")
+    axs[0].set_xlabel("Iteration")
+    axs[0].set_ylabel("Area")
 
-    ax1.set_xlabel("Iteration")
-    ax1.set_ylabel("Polygon Area", color='b')
-    ax2.set_ylabel("Constraint Violation", color='r')
+    axs[1].plot(distance_constraints, 'r--o')
+    axs[1].set_title("Distance Constraints Violation")
+    axs[1].set_xlabel("Iteration")
+    axs[1].set_ylabel("Violation Sum")
 
-    ax1.legend(loc='upper left')
-    ax2.legend(loc='upper right')
+    axs[2].plot(non_crossing_constraints, 'g--o')
+    axs[2].set_title("Non-Crossing Constraints Violation")
+    axs[2].set_xlabel("Iteration")
+    axs[2].set_ylabel("Violation Sum")
 
-    plt.title("Optimization Progress")
-    plt.grid()
+    plt.tight_layout()
     plt.show()
 
 
 # Example: Optimize for a hexagon
-n = 20  # Number of vertices
+n = 6  # Number of vertices
 R = 1.0  # Fixed radius
 coords, max_area = optimize_polygon(n, R)
 
