@@ -1,6 +1,6 @@
 import numpy as np
-from scipy.optimize import minimize
 import matplotlib.pyplot as plt
+from scipy.optimize import minimize
 
 
 def shoelace_area(coords):
@@ -19,9 +19,20 @@ def circle_constraint(coords, R):
 
 def optimize_polygon(n, R=1.0):
     """Optimizes the placement of n points on a circle to maximize polygon area."""
-    # Initial guess: Regular n-gon
-    angles = np.linspace(0, 2 * np.pi, n, endpoint=False)
+    # Initial guess: Random points on the circle
+    angles = np.random.uniform(0, 2 * np.pi, n)
     x0 = np.column_stack([R * np.cos(angles), R * np.sin(angles)]).flatten()
+
+    # Lists to track optimization progress
+    iteration_areas = []
+    iteration_constraints = []
+
+    def callback(coords):
+        """Callback function to track optimization progress."""
+        area = -shoelace_area(coords)
+        constraint_vals = np.abs(circle_constraint(coords, R)).sum()
+        iteration_areas.append(area)
+        iteration_constraints.append(constraint_vals)
 
     # Constraints
     constraints = [{
@@ -30,10 +41,14 @@ def optimize_polygon(n, R=1.0):
     }]
 
     # Optimize
-    result = minimize(shoelace_area, x0, constraints=constraints, method='COBYQA')
+    result = minimize(shoelace_area, x0, constraints=constraints, method='SLSQP', callback=callback)
 
     # Reshape optimized coordinates
     optimized_coords = result.x.reshape(2, -1).T
+
+    # Plot optimization progress
+    plot_optimization_progress(iteration_areas, iteration_constraints)
+
     return optimized_coords, -result.fun
 
 
@@ -61,8 +76,28 @@ def plot_polygon(coords, R):
     plt.show()
 
 
+def plot_optimization_progress(areas, constraints):
+    """Plots the progress of the solver objective (area) and constraints."""
+    fig, ax1 = plt.subplots()
+    ax2 = ax1.twinx()
+
+    ax1.plot(areas, 'b-o', label='Maximized Area')
+    ax2.plot(constraints, 'r--o', label='Constraint Violation')
+
+    ax1.set_xlabel("Iteration")
+    ax1.set_ylabel("Polygon Area", color='b')
+    ax2.set_ylabel("Constraint Violation", color='r')
+
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper right')
+
+    plt.title("Optimization Progress")
+    plt.grid()
+    plt.show()
+
+
 # Example: Optimize for a hexagon
-n = 12  # Number of vertices
+n = 20  # Number of vertices
 R = 1.0  # Fixed radius
 coords, max_area = optimize_polygon(n, R)
 
