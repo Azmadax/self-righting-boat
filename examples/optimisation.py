@@ -35,7 +35,8 @@ def optimize_polygon(n, R=1.0):
     x0 = np.concatenate([angle_diffs, radii])
 
     # Define bounds
-    bounds = [(0, 2 * np.pi) for _ in range(n)] + [(0, 2*R) for _ in range(n)]
+    # Impose minimal bound on angle diff to avoid having points superposed
+    bounds = [(2*np.pi/n/2, 2 * np.pi) for _ in range(n)] + [(0, 2*R) for _ in range(n)]
 
     # Lists to track optimization progress
     iteration_areas = []
@@ -58,6 +59,7 @@ def optimize_polygon(n, R=1.0):
         constraints.append({'type': 'ineq', 'fun': lambda polar_vars, i=i: radius_constraint(i, polar_vars, R)})
 
     # Optimize
+    # SLSQP and COBYQA were tested, but COBYQA is much worse on this simple case.
     result = minimize(shoelace_area, x0, args=(R,), constraints=constraints, method='SLSQP', callback=callback, bounds=bounds)
     if not result.success:
         print(result.message)
@@ -121,7 +123,7 @@ def plot_optimization_progress(areas, angle_constraints, radius_constraints):
 
 
 # Example: Optimize for a hexagon
-n = 20  # Number of vertices
+n = 100  # Number of vertices
 R = 1.0  # Fixed radius
 coords, max_area = optimize_polygon(n, R)
 
