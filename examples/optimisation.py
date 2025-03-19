@@ -17,11 +17,51 @@ def circle_constraint(coords, R):
     return R ** 2 - (x ** 2 + y ** 2)
 
 
+def edge_intersects(p1, p2, q1, q2):
+    """Checks if two line segments (p1->p2 and q1->q2) intersect."""
+
+    def cross_product(a, b):
+        return a[0] * b[1] - a[1] * b[0]
+
+    def subtract(v1, v2):
+        return (v1[0] - v2[0], v1[1] - v2[1])
+
+    r, s = subtract(p2, p1), subtract(q2, q1)
+    qp = subtract(q1, p1)
+    denom = cross_product(r, s)
+
+    if denom == 0:  # Parallel or collinear
+        return False
+
+    t = cross_product(qp, s) / denom
+    u = cross_product(qp, r) / denom
+
+    return 0 < t < 1 and 0 < u < 1  # True if segments intersect
+
+
+def non_crossing_constraint(coords):
+    """Ensures that edges do not cross."""
+    x, y = coords.reshape(2, -1)
+    n = len(x)
+
+    for i in range(n):
+        for j in range(i + 2, n):  # Avoid consecutive edges
+            if j == (i + 1) % n:  # Ignore adjacent edges
+                continue
+
+            p1, p2 = (x[i], y[i]), (x[(i + 1) % n], y[(i + 1) % n])
+            q1, q2 = (x[j], y[j]), (x[(j + 1) % n], y[(j + 1) % n])
+
+            if edge_intersects(p1, p2, q1, q2):
+                return -1  # Intersection detected
+    return 0  # No intersections
+
+
 def optimize_polygon(n, R=1.0):
     """Optimizes the placement of n points on a circle to maximize polygon area."""
     # Initial guess: Random points on the circle
     angles = np.random.uniform(0, 2 * np.pi, n)
-    x0 = np.column_stack([R * np.cos(angles), R * np.sin(angles)]).flatten()
+    x0 = np.column_stack([0.5*R * np.cos(angles), 0.5*R * np.sin(angles)]).flatten()
 
     # Lists to track optimization progress
     iteration_areas = []
@@ -35,10 +75,10 @@ def optimize_polygon(n, R=1.0):
         iteration_constraints.append(constraint_vals)
 
     # Constraints
-    constraints = [{
-        'type': 'eq',
-        'fun': lambda coords: circle_constraint(coords, R)
-    }]
+    constraints = [
+        {'type': 'ineq', 'fun': lambda coords: circle_constraint(coords, R)},
+        {'type': 'ineq', 'fun': non_crossing_constraint}  # Enforce non-crossing
+    ]
 
     # Optimize
     result = minimize(shoelace_area, x0, constraints=constraints, method='SLSQP', callback=callback)
