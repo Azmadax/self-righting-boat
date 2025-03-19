@@ -74,6 +74,45 @@ def find_vertical_offset_for_vertical_equilibrium(mesh, target_displacement_volu
 
     return draft_offset_equilibrium
 
+def compute_righting_arm(
+    mesh: trimesh.Trimesh,
+    target_volume: float,
+    center_of_gravity: list[float],
+    plot: bool = False,
+) -> float:
+    """
+    Compute the righting arm GZ with zero trim
+
+    Args:
+        mesh (trimesh.Trimesh): ship mesh in position but not balanced [m]
+        target_volume (float): target submerged area [m²]
+        center_of_gravity (list[float]): coordinate of center of gravity [m]
+        plot (bool): if at True, plot debug graph
+
+    Returns:
+        float: the righting arm GZ [m]
+    """
+    draft_offset_equilibrium = find_vertical_offset_for_vertical_equilibrium(
+        target_displacement_volume=target_volume, mesh=mesh
+    )
+
+    # Apply the found draft_offset to compute the submerged area and centroid
+    mesh.apply_translation(np.array([0, 0, draft_offset_equilibrium]))
+    volume = mesh.volume
+    cx, cy, cz = mesh.centroid
+    righting_arm = (
+        center_of_gravity[0] - cx
+    )  # Sign convention chosen to have positive slope when stable
+
+
+    if plot:
+        # Output results
+        print(f"Submerged (Volume): {mesh.volume}")
+        print(f"Center of buoyancy: ({cx}, {cy}, {cz})")
+
+
+    return righting_arm
+
 
 
 

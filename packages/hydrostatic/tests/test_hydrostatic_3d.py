@@ -1,7 +1,8 @@
+import pytest
 import trimesh
 
 from hydrostatic.hydrostatic_3d import get_submerged_mesh, volume_difference, \
-    find_vertical_offset_for_vertical_equilibrium
+    find_vertical_offset_for_vertical_equilibrium, compute_righting_arm
 
 
 def test_submerged_mesh():
@@ -29,14 +30,12 @@ def test_find_draft_offset_at_vertical_equilibrium_sinking():
         )==0.5
 
 
-# def test_compute_righting_arm():
-#     half = [[1, 0], [2, 1], [1, 2]]
-#     sym = [[-p[0], p[1]] for p in half]
-#     sym.reverse()
-#     righting_arm, metacenter_radius = compute_righting_arm(
-#         curve_points=half + sym, target_area=1, center_of_gravity=[0, 0], plot=False
-#     )
-#     assert righting_arm == 0
+def test_compute_righting_arm():
+    mesh = trimesh.primitives.Box(extents=[1, 1, 1])
+    righting_arm = compute_righting_arm(
+        mesh=mesh, target_volume=0.75, center_of_gravity=[0, 0], plot=False
+    )
+    assert righting_arm == pytest.approx(0)
 # def test_find_equilibrium_points():
 #     trimesh.primitives.Box
 #     center_of_gravity = [0, 0.5]
