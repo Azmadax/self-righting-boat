@@ -16,16 +16,16 @@ print("Demo catamaran")
 
 # Define the hull polygons
 hull_left = [
-    [-1, -1],
+    [-1, 0],
+    [-2, 0],
     [-2, -1],
-    [-2, -2],
-    [-1, -2]
+    [-1, -1]
 ]
 hull_right = [
+    [1, 0],
     [1, -1],
-    [1, -2],
-    [2, -2],
-    [2, -1]
+    [2, -1],
+    [2, 0]
 ]
 my_boat = join_polygons([hull_left, hull_right])
 my_boat.reverse()
@@ -36,7 +36,27 @@ plt.show()
 
 target_area = 1.9
 
-def lower_arch(polar_vars):
+def polar_vars_split(polar_vars: list):
+    """
+    Optimisation variable vectors is composed of:
+    -n-1 angles differences
+    -n distance of lower arch points
+    -n lower arch thickness
+    Args:
+        polar_vars:
+
+    Returns:
+        list[float]: n polar angles with respect to origin
+        list[float]: n distance from reference point lower_arch point
+        list[float: n thicknesses of arch
+    """
+    n = (len(polar_vars)+1) // 3
+    angles = [0]+ [sum(polar_vars[:i]) for i in range(1, n)]
+    lower_arch_radius = polar_vars[n-1:2*n-1]
+    arch_thickness = polar_vars[2*n-1:3*n-1]
+    return angles, lower_arch_radius, arch_thickness
+
+def lower_arch(polar_vars: list):
     """Generates the lower part of the arch based on polar variables.
 
     Args:
@@ -45,8 +65,8 @@ def lower_arch(polar_vars):
     Returns:
         list: List of coordinates representing the lower arc.
     """
-    n = len(polar_vars) // 3
-    lower_arc = [[polar_vars[i + n] * np.cos(sum(polar_vars[:i])), polar_vars[i + n] * np.sin(sum(polar_vars[:i]))] for
+    angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
+    lower_arc = [list(lower_arch_radius[i]*np.array([np.cos(angles[i]), np.sin(angles[i])]))for
                   i in range(n)]
     return lower_arc
 
@@ -59,13 +79,15 @@ def arch(polar_vars):
     Returns:
         list: List of coordinates representing the full arch (upper + lower).
     """
-    n = len(polar_vars) // 3
+    angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
     lower_arc = lower_arch(polar_vars)
-    upper_arch = [[(polar_vars[i+n]+polar_vars[i+2*n])*np.cos(sum(polar_vars[:i])), (polar_vars[i+n]+polar_vars[i+2*n])*np.sin(sum(polar_vars[:i]))] for i in range(n)]
+    upper_arch = [list((arch_thickness[i]+lower_arch_radius[i])*np.array([np.cos(angles[i]), np.sin(angles[i])]))for
+                  i in range(n)]
     lower_arc.reverse()
     arch = upper_arch + lower_arc
     x, y = Polygon(arch).exterior.xy
     plt.plot(x, y)
+    #plt.show()
     return arch
 
 def arch_area(polar_vars):
@@ -77,7 +99,7 @@ def arch_area(polar_vars):
     Returns:
         float: The area of the arch (negative value, since optimization minimizes).
     """
-    return -Polygon(arch(polar_vars)).area
+    return Polygon(arch(polar_vars)).area
 
 def angle_sum_constraint(polar_vars):
     """Ensures that the total sum of angles equals 180 degrees.
@@ -86,9 +108,10 @@ def angle_sum_constraint(polar_vars):
         polar_vars (list): A list of polar variables representing the arch geometry.
 
     Returns:
-        float: Difference between 180 degrees and the sum of the angles.
+        float: Difference between 180 degrees and the sum of the angles (last point must lie at 180°)
     """
-    return np.pi - np.sum(polar_vars[:len(polar_vars) // 2])
+    angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
+    return np.pi - angles[-1]
 
 def radius_constraint(i, polar_vars, R):
     """Ensures that each radius is within the maximum allowed range.
@@ -101,7 +124,8 @@ def radius_constraint(i, polar_vars, R):
     Returns:
         float: Difference between the max radius and the current radius.
     """
-    return R - polar_vars[2 * len(polar_vars) // 3 + i]
+    angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
+    return R - lower_arch_radius[i]
 
 def outer_constraint(i, polar_vars):
     """Ensures that each point is at least a certain distance from the polygon (boat hull).
@@ -122,7 +146,7 @@ def outer_constraint(i, polar_vars):
 
     return constraint(lower_arc[i])
 
-def stability_constraint(j, polar_vars):
+def stability_constraint(j, polar_vars, angles_deg):
     """Ensures that the boat's righting arm curve is valid for stability at each angle.
 
     Args:
@@ -133,7 +157,6 @@ def stability_constraint(j, polar_vars):
         list: Righting arm curve for the given angle.
     """
     center_of_gravity = [0, 0]
-    angles_deg = np.linspace(start=0, stop=180, num=NUM_GZ)
 
     arc = arch(polar_vars)
     new_boat = join_polygons([my_boat, arc])
@@ -161,11 +184,11 @@ def optimize_polygon(n, R=1.0):
     Returns:
         tuple: Optimized polygon coordinates and the maximized area.
     """
-    angle_diffs = [np.pi / n for i in range(n)]
+    angle_diffs = [np.pi / (n-1) for i in range(n-1)]
     radii = [R for i in range(n)]
     x0 = np.concatenate([angle_diffs, radii, radii])
 
-    bounds = [(2 * np.pi / n / 2, 2 * np.pi) for _ in range(n)] + [(0, R) for _ in range(n)] + [(0, R) for _ in range(n)]
+    bounds = [(np.pi / (n-1) / 2, np.pi) for _ in range(n-1)] + [(0, R) for _ in range(n)] + [(0, R) for _ in range(n)]
 
     # Lists to track optimization progress
     iteration_areas = []
@@ -187,21 +210,22 @@ def optimize_polygon(n, R=1.0):
         iteration_radius_constraints.append(radius_constraints)
 
     # Constraints
-    constraints = [{'type': 'ineq', 'fun': angle_sum_constraint}]
+    constraints = [{'type': 'eq', 'fun': angle_sum_constraint}]
     for i in range(n):
         constraints.append({'type': 'ineq', 'fun': lambda polar_vars, i=i: radius_constraint(i, polar_vars, R)})
         constraints.append({'type': 'ineq', 'fun': lambda polar_vars, i=i: outer_constraint(i, polar_vars)})
     for j in range(NUM_GZ):
-        constraints.append({'type': 'ineq', 'fun': lambda polar_vars, j=j: stability_constraint(j, polar_vars)})
-
+        constraints.append({'type': 'ineq', 'fun': lambda polar_vars, j=j: stability_constraint(j, polar_vars, angles_deg = np.linspace(start=0, stop=180, num=NUM_GZ))})
+        constraints.append({'type': 'ineq', 'fun': lambda polar_vars, j=j: -1*stability_constraint(j, polar_vars,
+                                                                                                angles_deg=np.linspace(
+                                                                                                    start=-180, stop=0,
+                                                                                                    num=NUM_GZ))})
     result = minimize(arch_area, x0, constraints=constraints, method='SLSQP', bounds=bounds, callback=callback)
     if not result.success:
         print(result.message)
 
-    optimized_angles = np.cumsum(result.x[:n])
-    optimized_radii = np.clip(result.x[n:2*n], 0, R)
-    optimized_thickness = np.clip(result.x[2*n:3 * n], 0, R)
-    optimized_poly = arch([optimized_angles + optimized_radii + optimized_thickness])
+    angles, lower_arch_radius, arch_thickness = polar_vars_split(result.x)
+    optimized_poly = arch(result.x)
     new_boat = join_polygons([my_boat, optimized_poly])
     plt.show()
 
