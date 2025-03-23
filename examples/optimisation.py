@@ -7,12 +7,16 @@ from shapely.geometry import Point, Polygon
 
 from hydrostatic.hydrostatic_2d import (
     join_polygons,
-    compute_righting_arm_curve, find_equilibrium_points,
+    compute_righting_arm_curve,
+    find_equilibrium_points,
 )
 
+DEBUG = False
 VERTICAL_SYM = True
 
-NUM_GZ = 10
+
+NUM_GZ = 36
+center_of_gravity = [0, -0.2]
 matplotlib.use("QtAgg")
 
 print("Demo catamaran")
@@ -23,11 +27,9 @@ hull_right = [[1, 0], [1, -1], [2, -1], [2, 0]]
 my_boat = join_polygons([hull_left, hull_right])
 my_boat.reverse()
 polygon = Polygon(my_boat)
-x, y = polygon.exterior.xy
-plt.plot(x, y)
-plt.show()
 
-target_area = 1
+
+target_area = 0.9
 
 
 def polar_vars_split(
@@ -107,7 +109,7 @@ def arch(polar_vars: list[float]) -> list[list[float]]:
     x, y = Polygon(arch).exterior.xy
     # plt.plot(x, y)
     # plt.show()
-    return arch
+    return list(reversed(arch))
 
 
 def arch_area(polar_vars: list[float]) -> float:
@@ -173,7 +175,6 @@ def stability_constraint(
     Returns:
         list: Righting arm curve for the given angle.
     """
-    center_of_gravity = [0, -0.2]
 
     arc = arch(polar_vars)
     new_boat = join_polygons([my_boat, arc])
@@ -195,10 +196,10 @@ def stability_constraint(
         )
     except ValueError:
         righting_arm_curves = [0]
-    #if righting_arm_curves[0] * np.sign(angles_deg[j]) < -0.001:
-        # x, y = Polygon(new_boat).exterior.xy
-        # plt.plot(x, y)
-        # plt.show()
+    # if righting_arm_curves[0] * np.sign(angles_deg[j]) < -0.001:
+    # x, y = Polygon(new_boat).exterior.xy
+    # plt.plot(x, y)
+    # plt.show()
     return righting_arm_curves[0]
 
 
@@ -228,18 +229,12 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         tuple: Optimized polygon coordinates and the minimized area.
     """
     if VERTICAL_SYM:
-        factor = 1
-    else:
         factor = 1 / 2.0
+    else:
+        factor = 1
     angle_diffs = [np.pi * factor / (n - 1) for i in range(n - 1)]
     radii = [R for i in range(n)]
     x0 = np.concatenate([angle_diffs, radii, radii])
-
-    bounds = (
-        [(np.pi * factor / (n - 1) / 2, np.pi*factor) for _ in range(n - 1)]
-        + [(0, R) for _ in range(n)]
-        + [(0, R) for _ in range(n)]
-    )
 
     # Lists to track optimization progress
     iteration_areas = []
@@ -252,6 +247,19 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         Args:
             polar_vars (list): The current values of the optimization variables (polar coordinates).
         """
+        if DEBUG:
+            arc = arch(polar_vars)
+            new_boat = join_polygons([my_boat, arc])
+
+            try:
+                find_equilibrium_points(
+                    curve_points=new_boat,
+                    center_of_gravity=center_of_gravity,
+                    target_area=target_area,
+                    plot=True,
+                )
+            except ValueError:
+                print("invalid solution")
         area = arch_area(polar_vars)
         angle_constraint = angle_sum_constraint(polar_vars)
         angles_deg = np.linspace(start=0, stop=180, num=NUM_GZ)
@@ -266,6 +274,14 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         iteration_areas.append(area)
         iteration_angle_constraints.append(angle_constraint)
         iteration_stability_constraints.append(stability_constraints)
+
+    callback(x0)
+
+    bounds = (
+        [(np.pi * factor / (n - 1) / 2, np.pi * factor) for _ in range(n - 1)]
+        + [(1, R) for _ in range(n)]
+        + [(0.5, R) for _ in range(n)]
+    )
 
     # Constraints
     constraints = [{"type": "eq", "fun": angle_sum_constraint}]
@@ -303,21 +319,23 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         method="SLSQP",
         bounds=bounds,
         callback=callback,
-        options={"disp": False, "eps": 1e-1},
+        options={"disp": False},
     )
     if not result.success:
         print(result.message)
 
-    angles, lower_arch_radius, arch_thickness = polar_vars_split(result.x)
     optimized_poly = arch(result.x)
     new_boat = join_polygons([my_boat, optimized_poly])
-    plt.show()
 
-    x, y = Polygon(new_boat).exterior.xy
-    plt.plot(x, y)
-    plt.show()
-
-    righting_arm_curve(result.x)
+    try:
+        find_equilibrium_points(
+            curve_points=new_boat,
+            center_of_gravity=center_of_gravity,
+            target_area=target_area,
+            plot=True,
+        )
+    except ValueError:
+        print("invalid solution")
 
     # Plot optimization progress
     plot_optimization_progress(
