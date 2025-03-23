@@ -64,7 +64,7 @@ def lower_arch(polar_vars: list[float]) -> list[list[float]]:
     angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
     lower_arc = [
         list(lower_arch_radius[i] * np.array([np.cos(angles[i]), np.sin(angles[i])]))
-        for i in range(n)
+        for i in range(len(angles))
     ]
     return lower_arc
 
@@ -119,21 +119,6 @@ def angle_sum_constraint(polar_vars: list[float]) -> float:
     """
     angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
     return np.pi - angles[-1]
-
-
-def radius_constraint(i: int, polar_vars: list[float], R: float) -> float:
-    """Ensures that each radius is within the maximum allowed range.
-
-    Args:
-        i (int): Index of the radius to check.
-        polar_vars (list): A list of polar variables representing the boat's geometry.
-        R (float): Maximum allowed radius.
-
-    Returns:
-        float: Difference between the max radius and the current radius.
-    """
-    angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
-    return R - lower_arch_radius[i]
 
 
 def outer_constraint(i: int, polar_vars: list[float]) -> float:
@@ -224,7 +209,6 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
     # Lists to track optimization progress
     iteration_areas = []
     iteration_angle_constraints = []
-    iteration_radius_constraints = []
     iteration_stability_constraints = []
 
     def callback(polar_vars: list[float]) -> None:
@@ -235,7 +219,6 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         """
         area = arch_area(polar_vars)
         angle_constraint = angle_sum_constraint(polar_vars)
-        radius_constraints = [radius_constraint(i, polar_vars, R) for i in range(n)]
         angles_deg = np.linspace(start=0, stop=180, num=NUM_GZ)
         stability_constraints = [
             stability_constraint(j, polar_vars, angles_deg) for j in range(NUM_GZ)
@@ -247,18 +230,11 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
 
         iteration_areas.append(area)
         iteration_angle_constraints.append(angle_constraint)
-        iteration_radius_constraints.append(radius_constraints)
         iteration_stability_constraints.append(stability_constraints)
 
     # Constraints
     constraints = [{"type": "eq", "fun": angle_sum_constraint}]
     for i in range(n):
-        constraints.append(
-            {
-                "type": "ineq",
-                "fun": lambda polar_vars, i=i: radius_constraint(i, polar_vars, R),
-            }
-        )
         constraints.append(
             {
                 "type": "ineq",
@@ -312,7 +288,6 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
     plot_optimization_progress(
         iteration_areas,
         iteration_angle_constraints,
-        iteration_radius_constraints,
         iteration_stability_constraints,
     )
 
@@ -347,7 +322,6 @@ def plot_polygon(coords: list[list[float]], R: float) -> None:
 def plot_optimization_progress(
     areas: list[float],
     angle_constraints: list[float],
-    radius_constraints: list[list[float]],
     stability_constraints: list[list[float]],
 ) -> None:
     """Plots the progress of the solver objective and constraints in separate subplots.
@@ -355,10 +329,9 @@ def plot_optimization_progress(
     Args:
         areas (list): List of area values at each iteration.
         angle_constraints (list): List of angle constraint violations.
-        radius_constraints (list): List of radius constraint violations.
         stability_constraints (list): List of stability constraint violations.
     """
-    fig, axs = plt.subplots(4, 1, figsize=(8, 12))
+    fig, axs = plt.subplots(3, 1, figsize=(8, 12))
 
     axs[0].plot(areas, "b-o")
     axs[0].set_title("Minimized Area")
@@ -370,15 +343,10 @@ def plot_optimization_progress(
     axs[1].set_xlabel("Iteration")
     axs[1].set_ylabel("Violation if negative")
 
-    axs[2].plot(radius_constraints, "g--o")
-    axs[2].set_title("Radius Constraints Violation")
+    axs[2].plot(stability_constraints, "y--o")
+    axs[2].set_title("Stability Constraints Violation")
     axs[2].set_xlabel("Iteration")
     axs[2].set_ylabel("Violation if negative")
-
-    axs[3].plot(stability_constraints, "y--o")
-    axs[3].set_title("Stability Constraints Violation")
-    axs[3].set_xlabel("Iteration")
-    axs[3].set_ylabel("Violation if negative")
 
     plt.tight_layout()
     plt.show()
