@@ -7,9 +7,10 @@ from shapely.geometry import Point, Polygon
 
 from hydrostatic.hydrostatic_2d import (
     join_polygons,
-    compute_righting_arm_curve,
+    compute_righting_arm_curve, find_equilibrium_points,
 )
 
+VERTICAL_SYM = True
 
 NUM_GZ = 10
 matplotlib.use("QtAgg")
@@ -66,6 +67,13 @@ def lower_arch(polar_vars: list[float]) -> list[list[float]]:
         list(lower_arch_radius[i] * np.array([np.cos(angles[i]), np.sin(angles[i])]))
         for i in range(len(angles))
     ]
+    if VERTICAL_SYM:
+        lower_arc = lower_arc + [
+            list(
+                lower_arch_radius[i] * np.array([-np.cos(angles[i]), np.sin(angles[i])])
+            )
+            for i in reversed(range(len(angles)))
+        ]
     return lower_arc
 
 
@@ -87,10 +95,17 @@ def arch(polar_vars: list[float]) -> list[list[float]]:
         )
         for i in range(n)
     ]
-    lower_arc.reverse()
-    arch = upper_arch + lower_arc
+    if VERTICAL_SYM:
+        upper_arch = upper_arch + [
+            list(
+                (arch_thickness[i] + lower_arch_radius[i])
+                * np.array([-np.cos(angles[i]), np.sin(angles[i])])
+            )
+            for i in reversed(range(n))
+        ]
+    arch = upper_arch + list(reversed(lower_arc))
     x, y = Polygon(arch).exterior.xy
-    plt.plot(x, y)
+    # plt.plot(x, y)
     # plt.show()
     return arch
 
@@ -118,7 +133,12 @@ def angle_sum_constraint(polar_vars: list[float]) -> float:
         float: Difference between 180 degrees and the sum of the angles (last point must lie at 180°)
     """
     angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
-    return np.pi - angles[-1]
+
+    total_angle = np.pi
+    if VERTICAL_SYM:
+        total_angle = total_angle / 2
+
+    return total_angle - angles[-1]
 
 
 def outer_constraint(i: int, polar_vars: list[float]) -> float:
@@ -158,6 +178,13 @@ def stability_constraint(
     arc = arch(polar_vars)
     new_boat = join_polygons([my_boat, arc])
 
+    # eq = find_equilibrium_points(
+    #     curve_points=new_boat,
+    #     center_of_gravity=center_of_gravity,
+    #     target_area=target_area,
+    #     plot=True,
+    # )
+
     try:
         righting_arm_curves = compute_righting_arm_curve(
             curve_points=new_boat,
@@ -168,6 +195,10 @@ def stability_constraint(
         )
     except ValueError:
         righting_arm_curves = [0]
+    #if righting_arm_curves[0] * np.sign(angles_deg[j]) < -0.001:
+        # x, y = Polygon(new_boat).exterior.xy
+        # plt.plot(x, y)
+        # plt.show()
     return righting_arm_curves[0]
 
 
@@ -196,12 +227,16 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
     Returns:
         tuple: Optimized polygon coordinates and the minimized area.
     """
-    angle_diffs = [np.pi / (n - 1) for i in range(n - 1)]
+    if VERTICAL_SYM:
+        factor = 1
+    else:
+        factor = 1 / 2.0
+    angle_diffs = [np.pi * factor / (n - 1) for i in range(n - 1)]
     radii = [R for i in range(n)]
     x0 = np.concatenate([angle_diffs, radii, radii])
 
     bounds = (
-        [(np.pi / (n - 1) / 2, np.pi) for _ in range(n - 1)]
+        [(np.pi * factor / (n - 1) / 2, np.pi*factor) for _ in range(n - 1)]
         + [(0, R) for _ in range(n)]
         + [(0, R) for _ in range(n)]
     )
@@ -354,7 +389,7 @@ def plot_optimization_progress(
 
 # Example: Optimize for a hexagon
 n = 10  # Number of vertices
-R = 1.0  # Fixed radius
+R = 2.0  # Fixed radius
 coords, min_area = optimize_polygon(n, R)
 
 print("Optimized coordinates:")
