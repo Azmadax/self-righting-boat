@@ -153,7 +153,7 @@ def stability_constraint(
     Returns:
         list: Righting arm curve for the given angle.
     """
-    center_of_gravity = [0, 0]
+    center_of_gravity = [0, -0.2]
 
     arc = arch(polar_vars)
     new_boat = join_polygons([my_boat, arc])
