@@ -15,7 +15,7 @@ DEBUG = False
 VERTICAL_SYM = True
 
 
-NUM_GZ = 36
+ANGLE_GZ_STEP_DEG = 5
 center_of_gravity = [0, -0.2]
 matplotlib.use("QtAgg")
 
@@ -163,14 +163,13 @@ def outer_constraint(i: int, polar_vars: list[float]) -> float:
     return constraint(lower_arc[i])
 
 
-def stability_constraint(
-    j: int, polar_vars: list[float], angles_deg: list[float]
+def stability_constraint(polar_vars: list[float], angle_deg: float
 ) -> float:
     """Ensures that the boat's righting arm curve is valid for stability at each angle.
 
     Args:
-        j (int): Index of the angle to check.
         polar_vars (list): A list of polar variables representing the arch geometry.
+        angle_deg: angle at which righting arm must be evaluated
 
     Returns:
         list: Righting arm curve for the given angle.
@@ -191,7 +190,7 @@ def stability_constraint(
             curve_points=new_boat,
             center_of_gravity=center_of_gravity,
             target_area=target_area,
-            angles_deg=[angles_deg[j]],
+            angles_deg=[angle_deg],
             plot=False,
         )
     except ValueError:
@@ -262,14 +261,15 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
                 print("invalid solution")
         area = arch_area(polar_vars)
         angle_constraint = angle_sum_constraint(polar_vars)
-        angles_deg = np.linspace(start=0, stop=180, num=NUM_GZ)
+        angles_deg = np.arange(start=5, stop=175, step=ANGLE_GZ_STEP_DEG)
         stability_constraints = [
-            stability_constraint(j, polar_vars, angles_deg) for j in range(NUM_GZ)
+            stability_constraint(polar_vars, angle_deg) for angle_deg in angles_deg
         ]
-        angles_deg = np.linspace(start=-180, stop=0, num=NUM_GZ)
-        stability_constraints = stability_constraints + [
-            -1 * stability_constraint(j, polar_vars, angles_deg) for j in range(NUM_GZ)
-        ]
+        if not (VERTICAL_SYM):
+            angles_deg = np.arange(start=-5, stop=-175, step=-ANGLE_GZ_STEP_DEG)
+            stability_constraints = stability_constraints + [
+                -1 * stability_constraint(polar_vars, angles_deg) for angle_deg in angles_deg
+            ]
 
         iteration_areas.append(area)
         iteration_angle_constraints.append(angle_constraint)
@@ -292,26 +292,27 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
                 "fun": lambda polar_vars, i=i: outer_constraint(i, polar_vars),
             }
         )
-    for j in range(NUM_GZ):
+    angles_deg = np.arange(start=5, stop=175, step=ANGLE_GZ_STEP_DEG)
+    for angle_deg in angles_deg:
         constraints.append(
             {
                 "type": "ineq",
-                "fun": lambda polar_vars, j=j: stability_constraint(
-                    j, polar_vars, angles_deg=np.linspace(start=0, stop=180, num=NUM_GZ)
+                "fun": lambda polar_vars : stability_constraint(
+                    polar_vars, angle_deg=angle_deg
                 ),
             }
         )
-        constraints.append(
-            {
-                "type": "ineq",
-                "fun": lambda polar_vars, j=j: -1
-                * stability_constraint(
-                    j,
-                    polar_vars,
-                    angles_deg=np.linspace(start=-180, stop=0, num=NUM_GZ),
-                ),
-            }
-        )
+    if not( VERTICAL_SYM):
+        angles_deg = np.arange(start=-5, stop=-175, step=-ANGLE_GZ_STEP_DEG)
+        for angle_deg in angles_deg:
+            constraints.append(
+                {
+                    "type": "ineq",
+                    "fun": lambda polar_vars: -stability_constraint(
+                        polar_vars, angle_deg=angle_deg
+                    ),
+                }
+            )
     result = minimize(
         arch_area,
         x0,
