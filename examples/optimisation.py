@@ -124,6 +124,13 @@ def arch_area(polar_vars: list[float]) -> float:
     # righting_arm_curve(polar_vars)
     return Polygon(arch(polar_vars)).area
 
+def objective(polar_vars: list[float]):
+    angles_deg = np.arange(start=5, stop=175, step=ANGLE_GZ_STEP_DEG)
+    stability_constraints = [
+        stability_constraint(polar_vars, angle_deg) for angle_deg in angles_deg
+    ]
+    return arch_area(polar_vars)+ np.sum(np.clip(-np.array(stability_constraints), a_min=0, a_max=None))
+
 
 def angle_sum_constraint(polar_vars: list[float]) -> float:
     """Ensures that the total sum of angles equals 180 degrees.
@@ -314,7 +321,7 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
                 }
             )
     result = minimize(
-        arch_area,
+        objective,
         x0,
         constraints=constraints,
         method="SLSQP",
