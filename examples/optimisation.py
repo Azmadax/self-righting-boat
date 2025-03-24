@@ -129,7 +129,7 @@ def objective(polar_vars: list[float]):
     stability_constraints = [
         stability_constraint(polar_vars, angle_deg) for angle_deg in angles_deg
     ]
-    return arch_area(polar_vars)+ np.sum(np.clip(-np.array(stability_constraints), a_min=0, a_max=None))
+    return arch_area(polar_vars)+ np.sum(np.clip(-np.array(stability_constraints)+0.1, a_min=0, a_max=None))
 
 
 def angle_sum_constraint(polar_vars: list[float]) -> float:
@@ -286,8 +286,8 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
 
     bounds = (
         [(np.pi * factor / (n - 1) / 2, np.pi * factor) for _ in range(n - 1)]
-        + [(1, R) for _ in range(n)]
-        + [(0.5, R) for _ in range(n)]
+        + [(0.1, R) for _ in range(n)]
+        + [(0.1, R) for _ in range(n)]
     )
 
     # Constraints
