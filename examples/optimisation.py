@@ -332,7 +332,7 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         objective,
         x0,
         constraints=constraints,
-        method="COBYQA",
+        method="SLSQP",
         bounds=bounds,
         callback=callback,
         options={"disp": False},
