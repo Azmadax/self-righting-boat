@@ -1,3 +1,5 @@
+import enum
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
@@ -13,6 +15,8 @@ from hydrostatic.hydrostatic_2d import (
 
 DEBUG = False
 VERTICAL_SYM = True
+
+
 
 
 ANGLE_GZ_STEP_DEG = 5
@@ -33,6 +37,13 @@ polygon = Polygon(my_boat)
 
 target_area = 0.9
 
+class ShapeFamily(str, enum.Enum):
+    CIRCLE= "CIRCLE"
+    ELLIPSE= "ELLIPSE"
+    POLAR= "POLAR"
+
+
+shape_family = ShapeFamily.ELLIPSE
 
 def polar_vars_split(
     polar_vars: list[float],
@@ -50,10 +61,21 @@ def polar_vars_split(
         list[float]: n distance from reference point lower_arch point
         list[float: n thicknesses of arch
     """
-    n = (len(polar_vars) + 1) // 3
-    angles = [0] + [sum(polar_vars[:i]) for i in range(1, n)]
-    lower_arch_radius = polar_vars[n - 1 : 2 * n - 1]
-    arch_thickness = polar_vars[2 * n - 1 : 3 * n - 1]
+    if len(polar_vars) == 2:
+        # Circle case
+        angles=np.deg2rad(np.arange(start=0, stop=91))
+        lower_arch_radius = polar_vars[0] + 0*angles
+        arch_thickness = polar_vars[1] + 0*angles
+    elif len(polar_vars)==4:
+        # Ellipsis or close
+        angles=np.deg2rad(np.arange(start=0, stop=91))
+        lower_arch_radius = np.linspace(start=polar_vars[0], stop=polar_vars[1], num=len(angles))
+        arch_thickness = np.linspace(start=polar_vars[2], stop=polar_vars[3], num=len(angles))
+    else:
+        n = (len(polar_vars) + 1) // 3
+        angles = [0] + [sum(polar_vars[:i]) for i in range(1, n)]
+        lower_arch_radius = polar_vars[n - 1 : 2 * n - 1]
+        arch_thickness = polar_vars[2 * n - 1 : 3 * n - 1]
     return angles, lower_arch_radius, arch_thickness
 
 
@@ -97,7 +119,7 @@ def arch(polar_vars: list[float]) -> list[list[float]]:
             (arch_thickness[i] + lower_arch_radius[i])
             * np.array([np.cos(angles[i]), np.sin(angles[i])])
         )
-        for i in range(n)
+        for i in range(len(angles))
     ]
     if VERTICAL_SYM:
         upper_arch = upper_arch + [
@@ -105,10 +127,10 @@ def arch(polar_vars: list[float]) -> list[list[float]]:
                 (arch_thickness[i] + lower_arch_radius[i])
                 * np.array([-np.cos(angles[i]), np.sin(angles[i])])
             )
-            for i in reversed(range(n))
+            for i in reversed(range(len(angles)))
         ]
     arch = upper_arch + list(reversed(lower_arc))
-    x, y = Polygon(arch).exterior.xy
+    # x, y = Polygon(arch).exterior.xy
     # plt.plot(x, y)
     # plt.show()
     return list(reversed(arch))
@@ -240,9 +262,36 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         factor = 1 / 2.0
     else:
         factor = 1
-    angle_diffs = [np.pi * factor / (n - 1) for i in range(n - 1)]
-    radii = [R for i in range(n)]
-    x0 = np.concatenate([angle_diffs, radii, radii])
+
+    if shape_family == ShapeFamily.POLAR:
+        angle_diffs = [np.pi * factor / (n - 1) for i in range(n - 1)]
+        radii = [R for i in range(n)]
+        thickness = radii
+        bounds = (
+                [(np.pi * factor / (n - 1) / 2, np.pi * factor) for _ in range(n - 1)]
+                + [(0.1, R) for _ in range(n)]
+                + [(0.1, R) for _ in range(n)]
+        )
+    elif shape_family== ShapeFamily.CIRCLE:
+        angle_diffs = []  # For circle and ellipse
+        radii = [1]
+        thickness = [1]
+        bounds = (
+                [(0.1, R) for _ in range(1)]
+                + [(0.1, R) for _ in range(1)]
+        )
+    elif shape_family== ShapeFamily.ELLIPSE:
+        angle_diffs = []  # For circle and ellipse
+        radii = [1, 1]
+        thickness = [1, 1]
+        bounds = (
+                [(0.1, R) for _ in range(2)]
+                + [(0.1, R) for _ in range(2)]
+        )
+
+
+
+    x0 = np.concatenate([angle_diffs, radii, thickness])
 
     # Lists to track optimization progress
     iteration_areas = []
@@ -292,21 +341,19 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         print("polar var: ", polar_vars)
     callback(x0)
 
-    bounds = (
-        [(np.pi * factor / (n - 1) / 2, np.pi * factor) for _ in range(n - 1)]
-        + [(0.1, R) for _ in range(n)]
-        + [(0.1, R) for _ in range(n)]
-    )
+
 
     # Constraints
-    constraints = [{"type": "eq", "fun": angle_sum_constraint}]
-    for i in range(n):
-        constraints.append(
-            {
-                "type": "ineq",
-                "fun": lambda polar_vars, i=i: outer_constraint(i, polar_vars),
-            }
-        )
+    constraints = []
+    if shape_family == ShapeFamily.POLAR:
+        constraints.append({"type": "eq", "fun": angle_sum_constraint})
+        for i in range(n):
+            constraints.append(
+                {
+                    "type": "ineq",
+                    "fun": lambda polar_vars, i=i: outer_constraint(i, polar_vars),
+                }
+            )
     angles_deg = np.arange(start=5, stop=175, step=ANGLE_GZ_STEP_DEG)
     for angle_deg in angles_deg:
         constraints.append(
