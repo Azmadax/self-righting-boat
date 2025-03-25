@@ -39,7 +39,8 @@ target_area = 0.9
 
 class ShapeFamily(str, enum.Enum):
     CIRCLE= "CIRCLE"
-    ELLIPSE= "ELLIPSE"
+    KIND_OF_ELLIPSE= "KIND_OF_ELLIPSE"
+    ELLIPSE = "ELLIPSE"
     POLAR= "POLAR"
 
 
@@ -67,10 +68,36 @@ def polar_vars_split(
         lower_arch_radius = polar_vars[0] + 0*angles
         arch_thickness = polar_vars[1] + 0*angles
     elif len(polar_vars)==4:
-        # Ellipsis or close
-        angles=np.deg2rad(np.arange(start=0, stop=91))
-        lower_arch_radius = np.linspace(start=polar_vars[0], stop=polar_vars[1], num=len(angles))
-        arch_thickness = np.linspace(start=polar_vars[2], stop=polar_vars[3], num=len(angles))
+        if shape_family==ShapeFamily.KIND_OF_ELLIPSE:
+            # Ellipsis or close
+            angles=np.deg2rad(np.arange(start=0, stop=91))
+            lower_arch_radius = np.linspace(start=polar_vars[0], stop=polar_vars[1], num=len(angles))
+            arch_thickness = np.linspace(start=polar_vars[2], stop=polar_vars[3], num=len(angles))
+        elif shape_family==ShapeFamily.ELLIPSE:
+
+            # from center of ellipse
+            #https: // math.stackexchange.com / questions / 315386 / ellipse - in -polar - coordinates
+            angles=np.deg2rad(np.arange(start=0, stop=91))
+            if polar_vars[0]>=polar_vars[1]:
+                a=polar_vars[0]
+                b= polar_vars[1]
+                e = np.sqrt(1-b**2/a**2)
+                lower_arch_radius = b/np.sqrt(1-e**2*np.cos(angles)**2)
+            else:
+                a=polar_vars[1]
+                b= polar_vars[0]
+                e = np.sqrt(1-b**2/a**2)
+                lower_arch_radius = b/np.sqrt(1-e**2*np.sin(angles)**2)
+            if polar_vars[2]>=polar_vars[3]:
+                a=polar_vars[2]
+                b= polar_vars[3]
+                e = np.sqrt(1-b**2/a**2)
+                arch_thickness = b/np.sqrt(1-e**2*np.cos(angles)**2)
+            else:
+                a=polar_vars[3]
+                b= polar_vars[2]
+                e = np.sqrt(1-b**2/a**2)
+                arch_thickness = b/np.sqrt(1-e**2*np.sin(angles)**2)
     else:
         n = (len(polar_vars) + 1) // 3
         angles = [0] + [sum(polar_vars[:i]) for i in range(1, n)]
@@ -280,7 +307,7 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
                 [(0.1, R) for _ in range(1)]
                 + [(0.1, R) for _ in range(1)]
         )
-    elif shape_family== ShapeFamily.ELLIPSE:
+    elif shape_family== ShapeFamily.KIND_OF_ELLIPSE or shape_family== ShapeFamily.ELLIPSE:
         angle_diffs = []  # For circle and ellipse
         radii = [1, 1]
         thickness = [1, 1]
@@ -470,7 +497,7 @@ def plot_optimization_progress(
 
 # Example: Optimize for a hexagon
 n = 10  # Number of vertices
-R = 2.0  # Fixed radius
+R = 10.0  # Fixed radius
 coords, min_area = optimize_polygon(n, R)
 
 print("Optimized coordinates:")
