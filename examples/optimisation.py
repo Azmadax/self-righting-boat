@@ -19,6 +19,8 @@ ANGLE_GZ_STEP_DEG = 5
 center_of_gravity = [0, -0.2]
 matplotlib.use("QtAgg")
 
+Nfeval = 0
+
 print("Demo catamaran")
 
 # Define the hull polygons
@@ -253,6 +255,8 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         Args:
             polar_vars (list): The current values of the optimization variables (polar coordinates).
         """
+        global Nfeval
+        Nfeval += 1
         if DEBUG:
             arc = arch(polar_vars)
             new_boat = join_polygons([my_boat, arc])
@@ -281,7 +285,11 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         iteration_areas.append(area)
         iteration_angle_constraints.append(angle_constraint)
         iteration_stability_constraints.append(stability_constraints)
-
+        print("Nfeval: ", Nfeval)
+        print("area: ", area)
+        print("angle constrain: ", angle_constraint)
+        print("stability constrain: ", stability_constraints)
+        print("polar var: ", polar_vars)
     callback(x0)
 
     bounds = (
@@ -324,7 +332,7 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         objective,
         x0,
         constraints=constraints,
-        method="SLSQP",
+        method="COBYQA",
         bounds=bounds,
         callback=callback,
         options={"disp": False},
