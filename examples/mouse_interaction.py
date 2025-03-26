@@ -32,7 +32,6 @@ def get_mouse_clicks(title):
     # Connect the click event to the handler
     cid = fig.canvas.mpl_connect("button_press_event", onclick)
 
-
     # Show the plot and wait for interaction
     plt.show(block=True)  # Mode interactif pour Spyder
 
