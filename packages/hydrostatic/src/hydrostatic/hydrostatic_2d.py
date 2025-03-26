@@ -360,6 +360,7 @@ def compute_righting_arm(
     return righting_arm, metacentric_height
 
 
+
 def rotate(points: list[list[float]], angle) -> list[list[float]]:
     """
     Rotate list of 2D points by angle (direct rotation)
@@ -408,6 +409,15 @@ def compute_righting_arm_curve(
             plot=False,
         )
         righting_arms.append(righting_arm)
+    energie_potentielle = [0]  # Commence avec une valeur initiale de 0
+    somme = 0
+
+    for i in range(len(righting_arms) - 1):
+        dx = angles_deg[i+1] - angles_deg[i]  # Différence entre les abscisses
+        dy_avg = (righting_arms[i] + righting_arms[i+1]) / 2  # Moyenne des hauteurs (trapèze)
+        somme += dy_avg * dx  # Aire du trapèze
+
+        energie_potentielle.append(somme)  # Stocke l'intégrale accumulée
 
     if plot:
         plt.title("GZ curve")
@@ -415,6 +425,14 @@ def compute_righting_arm_curve(
         plt.grid()
         plt.xlabel("Angle of rotation [deg]")
         plt.ylabel("Righting arm GZ [m]")
+        plt.show()
+
+        plt.figure()
+        plt.title("courbe energie potentielle")
+        plt.plot(angles_deg, energie_potentielle, label="énergie potentielle")
+        plt.grid()
+        plt.xlabel("Angle of rotation [deg]")
+        plt.ylabel("Energie potentielle")
         plt.show()
     return righting_arms
 
