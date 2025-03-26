@@ -24,6 +24,7 @@ def close_curve(curve_points: list[list[float]]) -> list[list[float]]:
             curve_points.append(curve_points[0])
     return suppress_duplicated_neighbours(curve_points)
 
+
 def suppress_duplicated_neighbours(elems: list[Any]) -> list[Any]:
     """
     Ensure there is no useless duplicated neighbor in list
@@ -39,11 +40,11 @@ def suppress_duplicated_neighbours(elems: list[Any]) -> list[Any]:
             if c != elems[i]:
                 res.append(c)
     else:
-        res=[]
+        res = []
     return res
 
-def join_polygons(polygons: list[list[list[float]]]):
 
+def join_polygons(polygons: list[list[list[float]]]):
     """
     First close polygon if not
     Then join polygon from last to first point of next polygon
@@ -62,6 +63,7 @@ def join_polygons(polygons: list[list[list[float]]]):
     for polygon in polygons:
         sum.extend(close_curve(polygon))
     return close_curve(sum)
+
 
 def compute_submerged_points_and_segments(
     curve_points: list[list[float]],
@@ -360,7 +362,6 @@ def compute_righting_arm(
     return righting_arm, metacentric_height
 
 
-
 def rotate(points: list[list[float]], angle) -> list[list[float]]:
     """
     Rotate list of 2D points by angle (direct rotation)
@@ -413,12 +414,16 @@ def compute_righting_arm_curve(
     sum = 0
 
     for i in range(len(righting_arms) - 1):
-        dx = angles_deg[i+1] - angles_deg[i]  # Difference between abcissa
-        dy_avg = (righting_arms[i] + righting_arms[i+1]) / 2  # Average for Trapezoidal integration
+        dx = angles_deg[i + 1] - angles_deg[i]  # Difference between abcissa
+        dy_avg = (
+            righting_arms[i] + righting_arms[i + 1]
+        ) / 2  # Average for Trapezoidal integration
         sum += dy_avg * dx  # Trapezoidal area
 
         potential_energy.append(sum)  # Store the integration result
 
+    # Add constant to get the zero of potential energy corresponding to the minimum
+    potential_energy = potential_energy - np.min(potential_energy)
 
     if plot:
         plt.title("GZ curve")
