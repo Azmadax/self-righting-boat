@@ -17,8 +17,6 @@ DEBUG = False
 VERTICAL_SYM = True
 
 
-
-
 ANGLE_GZ_STEP_DEG = 5
 center_of_gravity = [0, -0.2]
 matplotlib.use("QtAgg")
@@ -37,14 +35,16 @@ polygon = Polygon(my_boat)
 
 target_area = 0.9
 
+
 class ShapeFamily(str, enum.Enum):
-    CIRCLE= "CIRCLE"
-    KIND_OF_ELLIPSE= "KIND_OF_ELLIPSE"
+    CIRCLE = "CIRCLE"
+    KIND_OF_ELLIPSE = "KIND_OF_ELLIPSE"
     ELLIPSE = "ELLIPSE"
-    POLAR= "POLAR"
+    POLAR = "POLAR"
 
 
 shape_family = ShapeFamily.ELLIPSE
+
 
 def polar_vars_split(
     polar_vars: list[float],
@@ -64,40 +64,43 @@ def polar_vars_split(
     """
     if len(polar_vars) == 2:
         # Circle case
-        angles=np.deg2rad(np.arange(start=0, stop=91))
-        lower_arch_radius = polar_vars[0] + 0*angles
-        arch_thickness = polar_vars[1] + 0*angles
-    elif len(polar_vars)==4:
-        if shape_family==ShapeFamily.KIND_OF_ELLIPSE:
+        angles = np.deg2rad(np.arange(start=0, stop=91))
+        lower_arch_radius = polar_vars[0] + 0 * angles
+        arch_thickness = polar_vars[1] + 0 * angles
+    elif len(polar_vars) == 4:
+        if shape_family == ShapeFamily.KIND_OF_ELLIPSE:
             # Ellipsis or close
-            angles=np.deg2rad(np.arange(start=0, stop=91))
-            lower_arch_radius = np.linspace(start=polar_vars[0], stop=polar_vars[1], num=len(angles))
-            arch_thickness = np.linspace(start=polar_vars[2], stop=polar_vars[3], num=len(angles))
-        elif shape_family==ShapeFamily.ELLIPSE:
-
+            angles = np.deg2rad(np.arange(start=0, stop=91))
+            lower_arch_radius = np.linspace(
+                start=polar_vars[0], stop=polar_vars[1], num=len(angles)
+            )
+            arch_thickness = np.linspace(
+                start=polar_vars[2], stop=polar_vars[3], num=len(angles)
+            )
+        elif shape_family == ShapeFamily.ELLIPSE:
             # from center of ellipse
-            #https: // math.stackexchange.com / questions / 315386 / ellipse - in -polar - coordinates
-            angles=np.deg2rad(np.arange(start=0, stop=91))
-            if polar_vars[0]>=polar_vars[1]:
-                a=polar_vars[0]
-                b= polar_vars[1]
-                e = np.sqrt(1-b**2/a**2)
-                lower_arch_radius = b/np.sqrt(1-e**2*np.cos(angles)**2)
+            # https: // math.stackexchange.com / questions / 315386 / ellipse - in -polar - coordinates
+            angles = np.deg2rad(np.arange(start=0, stop=91))
+            if polar_vars[0] >= polar_vars[1]:
+                a = polar_vars[0]
+                b = polar_vars[1]
+                e = np.sqrt(1 - b**2 / a**2)
+                lower_arch_radius = b / np.sqrt(1 - e**2 * np.cos(angles) ** 2)
             else:
-                a=polar_vars[1]
-                b= polar_vars[0]
-                e = np.sqrt(1-b**2/a**2)
-                lower_arch_radius = b/np.sqrt(1-e**2*np.sin(angles)**2)
-            if polar_vars[2]>=polar_vars[3]:
-                a=polar_vars[2]
-                b= polar_vars[3]
-                e = np.sqrt(1-b**2/a**2)
-                arch_thickness = b/np.sqrt(1-e**2*np.cos(angles)**2)
+                a = polar_vars[1]
+                b = polar_vars[0]
+                e = np.sqrt(1 - b**2 / a**2)
+                lower_arch_radius = b / np.sqrt(1 - e**2 * np.sin(angles) ** 2)
+            if polar_vars[2] >= polar_vars[3]:
+                a = polar_vars[2]
+                b = polar_vars[3]
+                e = np.sqrt(1 - b**2 / a**2)
+                arch_thickness = b / np.sqrt(1 - e**2 * np.cos(angles) ** 2)
             else:
-                a=polar_vars[3]
-                b= polar_vars[2]
-                e = np.sqrt(1-b**2/a**2)
-                arch_thickness = b/np.sqrt(1-e**2*np.sin(angles)**2)
+                a = polar_vars[3]
+                b = polar_vars[2]
+                e = np.sqrt(1 - b**2 / a**2)
+                arch_thickness = b / np.sqrt(1 - e**2 * np.sin(angles) ** 2)
     else:
         n = (len(polar_vars) + 1) // 3
         angles = [0] + [sum(polar_vars[:i]) for i in range(1, n)]
@@ -175,12 +178,15 @@ def arch_area(polar_vars: list[float]) -> float:
     # righting_arm_curve(polar_vars)
     return Polygon(arch(polar_vars)).area
 
+
 def objective(polar_vars: list[float]):
     angles_deg = np.arange(start=5, stop=175, step=ANGLE_GZ_STEP_DEG)
     stability_constraints = [
         stability_constraint(polar_vars, angle_deg) for angle_deg in angles_deg
     ]
-    return arch_area(polar_vars)+ np.sum(np.clip(-np.array(stability_constraints)+0.1, a_min=0, a_max=None))
+    return arch_area(polar_vars) + np.sum(
+        np.clip(-np.array(stability_constraints) + 0.1, a_min=0, a_max=None)
+    )
 
 
 def angle_sum_constraint(polar_vars: list[float]) -> float:
@@ -221,8 +227,7 @@ def outer_constraint(i: int, polar_vars: list[float]) -> float:
     return constraint(lower_arc[i])
 
 
-def stability_constraint(polar_vars: list[float], angle_deg: float
-) -> float:
+def stability_constraint(polar_vars: list[float], angle_deg: float) -> float:
     """Ensures that the boat's righting arm curve is valid for stability at each angle.
 
     Args:
@@ -295,28 +300,23 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         radii = [R for i in range(n)]
         thickness = radii
         bounds = (
-                [(np.pi * factor / (n - 1) / 2, np.pi * factor) for _ in range(n - 1)]
-                + [(0.1, R) for _ in range(n)]
-                + [(0.1, R) for _ in range(n)]
+            [(np.pi * factor / (n - 1) / 2, np.pi * factor) for _ in range(n - 1)]
+            + [(0.1, R) for _ in range(n)]
+            + [(0.1, R) for _ in range(n)]
         )
-    elif shape_family== ShapeFamily.CIRCLE:
+    elif shape_family == ShapeFamily.CIRCLE:
         angle_diffs = []  # For circle and ellipse
         radii = [1]
         thickness = [1]
-        bounds = (
-                [(0.1, R) for _ in range(1)]
-                + [(0.1, R) for _ in range(1)]
-        )
-    elif shape_family== ShapeFamily.KIND_OF_ELLIPSE or shape_family== ShapeFamily.ELLIPSE:
+        bounds = [(0.1, R) for _ in range(1)] + [(0.1, R) for _ in range(1)]
+    elif (
+        shape_family == ShapeFamily.KIND_OF_ELLIPSE
+        or shape_family == ShapeFamily.ELLIPSE
+    ):
         angle_diffs = []  # For circle and ellipse
         radii = [1, 1]
         thickness = [1, 1]
-        bounds = (
-                [(0.1, R) for _ in range(2)]
-                + [(0.1, R) for _ in range(2)]
-        )
-
-
+        bounds = [(0.1, R) for _ in range(2)] + [(0.1, R) for _ in range(2)]
 
     x0 = np.concatenate([angle_diffs, radii, thickness])
 
@@ -355,7 +355,8 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         if not (VERTICAL_SYM):
             angles_deg = np.arange(start=-5, stop=-175, step=-ANGLE_GZ_STEP_DEG)
             stability_constraints = stability_constraints + [
-                -1 * stability_constraint(polar_vars, angles_deg) for angle_deg in angles_deg
+                -1 * stability_constraint(polar_vars, angles_deg)
+                for angle_deg in angles_deg
             ]
 
         iteration_areas.append(area)
@@ -366,9 +367,8 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         print("angle constrain: ", angle_constraint)
         print("stability constrain: ", stability_constraints)
         print("polar var: ", polar_vars)
+
     callback(x0)
-
-
 
     # Constraints
     constraints = []
@@ -386,12 +386,12 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         constraints.append(
             {
                 "type": "ineq",
-                "fun": lambda polar_vars : stability_constraint(
+                "fun": lambda polar_vars: stability_constraint(
                     polar_vars, angle_deg=angle_deg
                 ),
             }
         )
-    if not( VERTICAL_SYM):
+    if not (VERTICAL_SYM):
         angles_deg = np.arange(start=-5, stop=-175, step=-ANGLE_GZ_STEP_DEG)
         for angle_deg in angles_deg:
             constraints.append(
