@@ -6,9 +6,13 @@ from geomdl import NURBS
 
 from hydrostatic.hydrostatic_2d import (
     close_curve,
-    find_equilibrium_points, join_polygons,
+    find_equilibrium_points,
+    join_polygons,
 )
-from hydrostatic.sample_boats_2d import generate_circular_boat, generate_arch_boat, generate_arch_boat_inner_outer
+from hydrostatic.sample_boats_2d import (
+    generate_circular_boat,
+    generate_arch_boat_inner_outer,
+)
 from mouse_interaction import get_mouse_clicks
 
 print("Demo arch boat")
@@ -34,19 +38,9 @@ eq = find_equilibrium_points(
 )
 
 print("Demo catamaran")
-hull_left = [
-    [-1, -1],
-    [-2, -1],
-    [-2, -2],
-    [-1, -2]]
-hull_right =[
-    [1, -1],
-    [1, -2],
-    [2, -2],
-    [2, -1]
-    ]
-curve_points= join_polygons([hull_left, hull_right])
-
+hull_left = [[-1, -1], [-2, -1], [-2, -2], [-1, -2]]
+hull_right = [[1, -1], [1, -2], [2, -2], [2, -1]]
+curve_points = join_polygons([hull_left, hull_right])
 
 
 center_of_gravity = [0, 0]

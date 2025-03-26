@@ -9,7 +9,7 @@ def generate_arch_boat_inner_outer():
 
     width = 4  # Width of the rectangle
     height = 2  # Height of the rectangle
-    e = 0.4 # Thickness of the arch
+    e = 0.4  # Thickness of the arch
     radius_sup = width / 2  # Radius of the semi-circle
     radius_inf = radius_sup - e
     draft_offset = 1  # Lowers all Y coordinates by 1 meter
@@ -17,18 +17,28 @@ def generate_arch_boat_inner_outer():
     # Rectangle: base of the boat
     rect_x = np.linspace(-width / 2, width / 2, 10)
     rect_bottom = [(x, -height / 2 - draft_offset) for x in rect_x]
-    rect_right = [(width / 2, y - draft_offset) for y in np.linspace(-height / 2, height / 2, 5)]
-    rect_left = [(-width / 2, y - draft_offset) for y in np.linspace(height / 2, -height / 2, 5)]
+    rect_right = [
+        (width / 2, y - draft_offset) for y in np.linspace(-height / 2, height / 2, 5)
+    ]
+    rect_left = [
+        (-width / 2, y - draft_offset) for y in np.linspace(height / 2, -height / 2, 5)
+    ]
 
     # Top semi-circle: centered at the top of the rectangle
     theta = np.linspace(0, np.pi, 10)
-    semi_circle_sup = [(radius_sup * np.cos(t), height / 2 + radius_sup * np.sin(t) - draft_offset) for t in theta]
+    semi_circle_sup = [
+        (radius_sup * np.cos(t), height / 2 + radius_sup * np.sin(t) - draft_offset)
+        for t in theta
+    ]
 
     # Bottom semi-cercle (inverted to avoid fillin in)
-    semi_circle_inf = [(radius_inf * np.cos(t), height / 2 + radius_inf * np.sin(t) - draft_offset) for t in reversed(theta)]
+    semi_circle_inf = [
+        (radius_inf * np.cos(t), height / 2 + radius_inf * np.sin(t) - draft_offset)
+        for t in reversed(theta)
+    ]
 
     # Top semi-circle: centered at the top of the rectangle
-    outer_curve_points = rect_left + rect_bottom  + rect_right+ semi_circle_sup
+    outer_curve_points = rect_left + rect_bottom + rect_right + semi_circle_sup
 
     # Bottom semi-circle: centered at the top of the rectangle
     inner_curve_points = list(reversed(semi_circle_inf))
@@ -37,12 +47,128 @@ def generate_arch_boat_inner_outer():
 
     # Centre de gravité
     center_of_gravity = [0.0, -float(draft_offset)]
-    
+
     outer_curve_points = [[float(x), float(y)] for x, y in outer_curve_points]
     inner_curve_points = [[float(x), float(y)] for x, y in inner_curve_points]
     boat_shape = join_polygons([outer_curve_points, list(reversed(inner_curve_points))])
 
     return boat_shape, center_of_gravity
+
+
+def generate_arch_boat_ellipse():
+    print("Executing generate_arch_boat_ellipse()")
+
+    width = 4  # Width of ellipse
+    height = 2  # Height of ellipse
+    e = 0.25  # Thickness
+    draft_offset = 1  # Offset by one meter down
+
+    # Ellipse parameters
+    ellipse_a_sup = width / 2  # Semi-major axis
+    ellipse_b_sup = 1.5 * height  # Semi-minor axis
+    ellipse_a_inf = ellipse_a_sup - e
+    ellipse_b_inf = ellipse_b_sup - e
+
+    # Base of boat
+    rect_x = np.linspace(-width / 2, width / 2, 10)
+    rect_bottom = [(x, -height / 2 - draft_offset) for x in rect_x]
+    rect_right = [
+        (width / 2, y - draft_offset) for y in np.linspace(-height / 2, height / 2, 5)
+    ]
+    rect_left = [
+        (-width / 2, y - draft_offset) for y in np.linspace(height / 2, -height / 2, 5)
+    ]
+
+    # Top ellipse
+    theta = np.linspace(0, np.pi, 10)
+    ellipse_sup = [
+        (
+            ellipse_a_sup * np.cos(t),
+            height / 2 + ellipse_b_sup * np.sin(t) - draft_offset,
+        )
+        for t in theta
+    ]
+
+    # Bottom ellipse
+    ellipse_inf = [
+        (
+            ellipse_a_inf * np.cos(t),
+            height / 2 + ellipse_b_inf * np.sin(t) - draft_offset,
+        )
+        for t in reversed(theta)
+    ]
+
+    # Merge curves
+    outer_curve_points = rect_left + rect_bottom + rect_right + ellipse_sup
+    inner_curve_points = list(reversed(ellipse_inf))
+
+    if inner_curve_points[0] != inner_curve_points[-1]:
+        inner_curve_points.append(inner_curve_points[0])
+
+    # Center of gravity
+    center_of_gravity = [0.0, -float(draft_offset)]
+
+    outer_curve_points = [[float(x), float(y)] for x, y in outer_curve_points]
+    inner_curve_points = [[float(x), float(y)] for x, y in inner_curve_points]
+    boat_shape = join_polygons([outer_curve_points, list(reversed(inner_curve_points))])
+
+    return boat_shape, center_of_gravity
+
+
+def generate_arch_boat_squared():
+    print("Executing generate_arch_boat_squared()")
+
+    width = 4  # Width of rectangular arch
+    height = 2  # Height of rectangular arch
+    e = 0.4  # Thickness
+    draft_offset = 1  # Offset toward bottom
+
+    # Base of boat
+    rect_x = np.linspace(-width / 2, width / 2, 10)
+    rect_bottom = [(x, -height / 2 - draft_offset) for x in rect_x]
+    rect_right = [
+        (width / 2, y - draft_offset)
+        for y in np.linspace(-height / 2, height / 2 + e, 5)
+    ]
+    rect_left = [
+        (-width / 2, y - draft_offset)
+        for y in np.linspace(height / 2 + e, -height / 2, 5)
+    ]
+    rect_top = [(x, height / 2 + e - draft_offset) for x in rect_x]
+
+    # Internal arch
+    inner_right = [
+        (width / 2 - e, y - draft_offset)
+        for y in np.linspace(height / 2 + e, -height / 2, 5)
+    ]
+    inner_left = [
+        (-width / 2 + e, y - draft_offset)
+        for y in np.linspace(-height / 2, height / 2 + e, 5)
+    ]
+    inner_bottom = [
+        (x, -height / 2 + e - draft_offset)
+        for x in np.linspace(-width / 2 + e, width / 2 - e, 10)
+    ]
+    inner_top = [
+        (x, height / 2 - draft_offset)
+        for x in np.linspace(width / 2 - e, -width / 2 + e, 10)
+    ]
+
+    outer_curve_points = rect_left + rect_bottom + rect_right + rect_top
+    inner_curve_points = inner_right + inner_bottom + inner_left + inner_top
+
+    if inner_curve_points[0] != inner_curve_points[-1]:
+        inner_curve_points.append(inner_curve_points[0])
+
+    # Center of gravity
+    center_of_gravity = [0.0, -float(draft_offset)]
+
+    outer_curve_points = [[float(x), float(y)] for x, y in outer_curve_points]
+    inner_curve_points = [[float(x), float(y)] for x, y in inner_curve_points]
+    boat_shape = join_polygons([outer_curve_points, list(reversed(inner_curve_points))])
+
+    return boat_shape, center_of_gravity
+
 
 def generate_arch_boat() -> tuple[list[tuple[float, float]], tuple[float, float]]:
     """Generates the points of a boat with a trapeze and a semi-circle arch centered at the top.
@@ -54,7 +180,7 @@ def generate_arch_boat() -> tuple[list[tuple[float, float]], tuple[float, float]
     print("Executing generate_boat_arch()")
     width = 4  # Width of the rectangle
     height = 2  # Height of the rectangle
-    e = 0.4 # Thickness of the arch
+    e = 0.4  # Thickness of the arch
     radius_sup = width / 2  # Radius of the semi-circle
     radius_inf = radius_sup - e
     draft_offset = 1  # Lowers all Y coordinates by 1 meter
@@ -71,7 +197,7 @@ def generate_arch_boat() -> tuple[list[tuple[float, float]], tuple[float, float]
 
     # Top semi-circle: centered at the top of the rectangle
     theta = np.linspace(0, np.pi, 10)  # 10 points for a smooth curve
-    semi_circle_sup= [
+    semi_circle_sup = [
         (+radius_sup * np.cos(t), height / 2 + radius_sup * np.sin(t) - draft_offset)
         for t in theta
     ]
@@ -83,12 +209,15 @@ def generate_arch_boat() -> tuple[list[tuple[float, float]], tuple[float, float]
     ]
 
     # Merge all points
-    boat_shape = join_polygons([rect_left + rect_bottom + rect_right, semi_circle_inf + semi_circle_sup])
+    boat_shape = join_polygons(
+        [rect_left + rect_bottom + rect_right, semi_circle_inf + semi_circle_sup]
+    )
 
     # Center of gravity at the middle of the rectangle²
     center_of_gravity = (0, -draft_offset)
 
     return boat_shape, center_of_gravity
+
 
 def generate_culbuto_boat() -> tuple[list[tuple[float, float]], tuple[float, float]]:
     """Generates the points of a boat with a rectangle and a semi-circle centered at the top.
@@ -126,9 +255,6 @@ def generate_culbuto_boat() -> tuple[list[tuple[float, float]], tuple[float, flo
     center_of_gravity = (0, -draft_offset)
 
     return boat_shape, center_of_gravity
-
-
-
 
 
 def generate_circular_boat() -> tuple[list[tuple[float, float]], tuple[float, float]]:
@@ -180,8 +306,48 @@ def generate_square_boat() -> tuple[list[tuple[float, float]], tuple[float, floa
     return boat_shape_square, center_of_gravity
 
 
+def generate_rectangle_boat() -> tuple[list[tuple[float, float]], tuple[float, float]]:
+    """Generates the points of a simple rectangular boat.
+
+    Returns:
+        list[tuple[float, float]]: Coordinates of the points defining the boat's hull.
+        tuple[float, float]: Center of gravity of the boat (0,0).
+    """
+    print("Executing generate_rectangle_boat()")
+
+    width = 4  # Width of rectangle
+    height = 2  # Height of rectangle
+    draft_offset = 1  # Offset toward bottom
+
+    # Define rectangle edges
+    rect_points = [
+        (-width / 2, -height / 2 - draft_offset),  # Bottom left
+        (width / 2, -height / 2 - draft_offset),  # Bottom right
+        (width / 2, height / 2 - draft_offset),  # Top right
+        (-width / 2, height / 2 - draft_offset),  # Top left
+        (
+            -width / 2,
+            -height / 2 - draft_offset,
+        ),  # Return to initial point to close
+    ]
+
+    # Center of gravity at center of rectangle
+    center_of_gravity = (0, -draft_offset)
+
+    return rect_points, center_of_gravity
+
+
 if __name__ == "__main__":
-    for method in [generate_arch_boat_inner_outer, generate_arch_boat, generate_circular_boat, generate_square_boat]:
+    for method in [
+        generate_arch_boat_inner_outer,
+        generate_arch_boat_ellipse,
+        generate_arch_boat_squared,
+        generate_arch_boat,
+        generate_culbuto_boat,
+        generate_circular_boat,
+        generate_square_boat,
+        generate_rectangle_boat,
+    ]:
         # Generate boat shape and CG
         boat_points, center_of_gravity = method()
 

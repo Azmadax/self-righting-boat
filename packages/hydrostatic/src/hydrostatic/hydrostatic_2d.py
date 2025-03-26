@@ -24,6 +24,7 @@ def close_curve(curve_points: list[list[float]]) -> list[list[float]]:
             curve_points.append(curve_points[0])
     return suppress_duplicated_neighbours(curve_points)
 
+
 def suppress_duplicated_neighbours(elems: list[Any]) -> list[Any]:
     """
     Ensure there is no useless duplicated neighbor in list
@@ -39,11 +40,11 @@ def suppress_duplicated_neighbours(elems: list[Any]) -> list[Any]:
             if c != elems[i]:
                 res.append(c)
     else:
-        res=[]
+        res = []
     return res
 
-def join_polygons(polygons: list[list[list[float]]]):
 
+def join_polygons(polygons: list[list[list[float]]]):
     """
     First close polygon if not
     Then join polygon from last to first point of next polygon
@@ -62,6 +63,7 @@ def join_polygons(polygons: list[list[list[float]]]):
     for polygon in polygons:
         sum.extend(close_curve(polygon))
     return close_curve(sum)
+
 
 def compute_submerged_points_and_segments(
     curve_points: list[list[float]],
@@ -226,6 +228,25 @@ def area_difference(
     # Compute the area below y=0 for the shifted curve
     area, _, _, _ = compute_submerged_area_and_centroid(shifted_points)
     return area - target_area
+
+
+def move_bottom_on_water_surface(
+    points: list[list[float, float]],
+) -> list[list[float, float]]:
+    """
+    Move vertically the polygon so that the bottom is at the surface of water (y=0).
+    This can be used to define a new reference position (typical reference is a keel line)
+
+    Args:
+        points (list[list[float, float]]): the polygon edge before moving
+    Returns:
+        list[list[float, float]]: the polygon points moved so that bottom is skimming on the surface
+    """
+    points = np.array(points)
+    y_coords = points[:, 1]
+    offset = -np.min(y_coords)  # Vertical offset to bring the base to y=0
+    moved_points = [[x, y + offset] for x, y in points]
+    return moved_points
 
 
 def find_draft_offset_at_vertical_equilibrium(
@@ -408,6 +429,20 @@ def compute_righting_arm_curve(
             plot=False,
         )
         righting_arms.append(righting_arm)
+    potential_energy = [0]  # Start with an initial value of zero
+    sum = 0
+
+    for i in range(len(righting_arms) - 1):
+        dx = angles_deg[i + 1] - angles_deg[i]  # Difference between abcissa
+        dy_avg = (
+            righting_arms[i] + righting_arms[i + 1]
+        ) / 2  # Average for Trapezoidal integration
+        sum += dy_avg * dx  # Trapezoidal area
+
+        potential_energy.append(sum)  # Store the integration result
+
+    # Add constant to get the zero of potential energy corresponding to the minimum
+    potential_energy = potential_energy - np.min(potential_energy)
 
     if plot:
         plt.title("GZ curve")
@@ -415,6 +450,14 @@ def compute_righting_arm_curve(
         plt.grid()
         plt.xlabel("Angle of rotation [deg]")
         plt.ylabel("Righting arm GZ [m]")
+        plt.show()
+
+        plt.figure()
+        plt.title("Potential energy curve")
+        plt.plot(angles_deg, potential_energy, label="Potential energy")
+        plt.grid()
+        plt.xlabel("Angle of rotation [deg]")
+        plt.ylabel("Potential energy")
         plt.show()
     return righting_arms
 
