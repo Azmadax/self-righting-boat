@@ -409,15 +409,16 @@ def compute_righting_arm_curve(
             plot=False,
         )
         righting_arms.append(righting_arm)
-    energie_potentielle = [0]  # Commence avec une valeur initiale de 0
-    somme = 0
+    potential_energy = [0]  # Start with an initial value of zero
+    sum = 0
 
     for i in range(len(righting_arms) - 1):
-        dx = angles_deg[i+1] - angles_deg[i]  # Différence entre les abscisses
-        dy_avg = (righting_arms[i] + righting_arms[i+1]) / 2  # Moyenne des hauteurs (trapèze)
-        somme += dy_avg * dx  # Aire du trapèze
+        dx = angles_deg[i+1] - angles_deg[i]  # Difference between abcissa
+        dy_avg = (righting_arms[i] + righting_arms[i+1]) / 2  # Average for Trapezoidal integration
+        sum += dy_avg * dx  # Trapezoidal area
 
-        energie_potentielle.append(somme)  # Stocke l'intégrale accumulée
+        potential_energy.append(sum)  # Store the integration result
+
 
     if plot:
         plt.title("GZ curve")
@@ -428,11 +429,11 @@ def compute_righting_arm_curve(
         plt.show()
 
         plt.figure()
-        plt.title("courbe energie potentielle")
-        plt.plot(angles_deg, energie_potentielle, label="énergie potentielle")
+        plt.title("Potential energy curve")
+        plt.plot(angles_deg, potential_energy, label="Potential energy")
         plt.grid()
         plt.xlabel("Angle of rotation [deg]")
-        plt.ylabel("Energie potentielle")
+        plt.ylabel("Potential energy")
         plt.show()
     return righting_arms
 
