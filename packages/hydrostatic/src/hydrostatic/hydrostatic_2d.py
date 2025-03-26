@@ -229,6 +229,21 @@ def area_difference(
     area, _, _, _ = compute_submerged_area_and_centroid(shifted_points)
     return area - target_area
 
+def move_bottom_on_water_surface(points: list[list[float, float]])->list[list[float, float]]:
+    """
+    Move vertically the polygon so that the bottom is at the surface of water (y=0).
+    This can be used to define a new reference position (typical reference is a keel line)
+
+    Args:
+        points (list[list[float, float]]): the polygon edge before moving
+    Returns:
+        list[list[float, float]]: the polygon points moved so that bottom is skimming on the surface
+    """
+    points = np.array(points)
+    y_coords = points[:, 1]
+    offset = -np.min(y_coords)  # Vertical offset to bring the base to y=0
+    moved_points = [[x, y + offset] for x, y in points]
+    return moved_points
 
 def find_draft_offset_at_vertical_equilibrium(
     target_displacement_area, curve_points: list[list[float]]
