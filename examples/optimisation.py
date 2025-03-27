@@ -6,27 +6,22 @@ import matplotlib
 from shapely.geometry import Point, Polygon
 import shapely
 
-from hydrostatic.hydrostatic_2d import join_polygons, close_curve, find_equilibrium_points, compute_righting_arm_curve
+from hydrostatic.hydrostatic_2d import (
+    join_polygons,
+    close_curve,
+    find_equilibrium_points,
+    compute_righting_arm_curve,
+)
 
 
 NUM_GZ = 10
-matplotlib.use('QtAgg')
+matplotlib.use("QtAgg")
 
 print("Demo catamaran")
 
 # Define the hull polygons
-hull_left = [
-    [-1, 0],
-    [-2, 0],
-    [-2, -1],
-    [-1, -1]
-]
-hull_right = [
-    [1, 0],
-    [1, -1],
-    [2, -1],
-    [2, 0]
-]
+hull_left = [[-1, 0], [-2, 0], [-2, -1], [-1, -1]]
+hull_right = [[1, 0], [1, -1], [2, -1], [2, 0]]
 my_boat = join_polygons([hull_left, hull_right])
 my_boat.reverse()
 polygon = Polygon(my_boat)
@@ -35,6 +30,7 @@ plt.plot(x, y)
 plt.show()
 
 target_area = 1.9
+
 
 def polar_vars_split(polar_vars: list):
     """
@@ -50,11 +46,12 @@ def polar_vars_split(polar_vars: list):
         list[float]: n distance from reference point lower_arch point
         list[float: n thicknesses of arch
     """
-    n = (len(polar_vars)+1) // 3
-    angles = [0]+ [sum(polar_vars[:i]) for i in range(1, n)]
-    lower_arch_radius = polar_vars[n-1:2*n-1]
-    arch_thickness = polar_vars[2*n-1:3*n-1]
+    n = (len(polar_vars) + 1) // 3
+    angles = [0] + [sum(polar_vars[:i]) for i in range(1, n)]
+    lower_arch_radius = polar_vars[n - 1 : 2 * n - 1]
+    arch_thickness = polar_vars[2 * n - 1 : 3 * n - 1]
     return angles, lower_arch_radius, arch_thickness
+
 
 def lower_arch(polar_vars: list):
     """Generates the lower part of the arch based on polar variables.
@@ -66,9 +63,12 @@ def lower_arch(polar_vars: list):
         list: List of coordinates representing the lower arc.
     """
     angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
-    lower_arc = [list(lower_arch_radius[i]*np.array([np.cos(angles[i]), np.sin(angles[i])]))for
-                  i in range(n)]
+    lower_arc = [
+        list(lower_arch_radius[i] * np.array([np.cos(angles[i]), np.sin(angles[i])]))
+        for i in range(n)
+    ]
     return lower_arc
+
 
 def arch(polar_vars):
     """Generates the full arch shape based on polar variables.
@@ -81,14 +81,20 @@ def arch(polar_vars):
     """
     angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
     lower_arc = lower_arch(polar_vars)
-    upper_arch = [list((arch_thickness[i]+lower_arch_radius[i])*np.array([np.cos(angles[i]), np.sin(angles[i])]))for
-                  i in range(n)]
+    upper_arch = [
+        list(
+            (arch_thickness[i] + lower_arch_radius[i])
+            * np.array([np.cos(angles[i]), np.sin(angles[i])])
+        )
+        for i in range(n)
+    ]
     lower_arc.reverse()
     arch = upper_arch + lower_arc
     x, y = Polygon(arch).exterior.xy
     plt.plot(x, y)
-    #plt.show()
+    # plt.show()
     return arch
+
 
 def arch_area(polar_vars):
     """Calculates the area of the arch.
@@ -101,6 +107,7 @@ def arch_area(polar_vars):
     """
     return Polygon(arch(polar_vars)).area
 
+
 def angle_sum_constraint(polar_vars):
     """Ensures that the total sum of angles equals 180 degrees.
 
@@ -112,6 +119,7 @@ def angle_sum_constraint(polar_vars):
     """
     angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
     return np.pi - angles[-1]
+
 
 def radius_constraint(i, polar_vars, R):
     """Ensures that each radius is within the maximum allowed range.
@@ -126,6 +134,7 @@ def radius_constraint(i, polar_vars, R):
     """
     angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
     return R - lower_arch_radius[i]
+
 
 def outer_constraint(i, polar_vars):
     """Ensures that each point is at least a certain distance from the polygon (boat hull).
@@ -145,6 +154,7 @@ def outer_constraint(i, polar_vars):
         return dist - threshold
 
     return constraint(lower_arc[i])
+
 
 def stability_constraint(j, polar_vars, angles_deg):
     """Ensures that the boat's righting arm curve is valid for stability at each angle.
@@ -173,6 +183,7 @@ def stability_constraint(j, polar_vars, angles_deg):
         righting_arm_curves = [0]
     return righting_arm_curves
 
+
 def optimize_polygon(n, R=1.0):
     """Optimizes the placement of n points in polar coordinates to minimize arch polygon area
     while ensuring the GZ is positive for positive angles and negative for negative angles.
@@ -184,11 +195,15 @@ def optimize_polygon(n, R=1.0):
     Returns:
         tuple: Optimized polygon coordinates and the maximized area.
     """
-    angle_diffs = [np.pi / (n-1) for i in range(n-1)]
+    angle_diffs = [np.pi / (n - 1) for i in range(n - 1)]
     radii = [R for i in range(n)]
     x0 = np.concatenate([angle_diffs, radii, radii])
 
-    bounds = [(np.pi / (n-1) / 2, np.pi) for _ in range(n-1)] + [(0, R) for _ in range(n)] + [(0, R) for _ in range(n)]
+    bounds = (
+        [(np.pi / (n - 1) / 2, np.pi) for _ in range(n - 1)]
+        + [(0, R) for _ in range(n)]
+        + [(0, R) for _ in range(n)]
+    )
 
     # Lists to track optimization progress
     iteration_areas = []
@@ -210,17 +225,48 @@ def optimize_polygon(n, R=1.0):
         iteration_radius_constraints.append(radius_constraints)
 
     # Constraints
-    constraints = [{'type': 'eq', 'fun': angle_sum_constraint}]
+    constraints = [{"type": "eq", "fun": angle_sum_constraint}]
     for i in range(n):
-        constraints.append({'type': 'ineq', 'fun': lambda polar_vars, i=i: radius_constraint(i, polar_vars, R)})
-        constraints.append({'type': 'ineq', 'fun': lambda polar_vars, i=i: outer_constraint(i, polar_vars)})
+        constraints.append(
+            {
+                "type": "ineq",
+                "fun": lambda polar_vars, i=i: radius_constraint(i, polar_vars, R),
+            }
+        )
+        constraints.append(
+            {
+                "type": "ineq",
+                "fun": lambda polar_vars, i=i: outer_constraint(i, polar_vars),
+            }
+        )
     for j in range(NUM_GZ):
-        constraints.append({'type': 'ineq', 'fun': lambda polar_vars, j=j: stability_constraint(j, polar_vars, angles_deg = np.linspace(start=0, stop=180, num=NUM_GZ))})
-        constraints.append({'type': 'ineq', 'fun': lambda polar_vars, j=j: -1*stability_constraint(j, polar_vars,
-                                                                                                angles_deg=np.linspace(
-                                                                                                    start=-180, stop=0,
-                                                                                                    num=NUM_GZ))})
-    result = minimize(arch_area, x0, constraints=constraints, method='SLSQP', bounds=bounds, callback=callback)
+        constraints.append(
+            {
+                "type": "ineq",
+                "fun": lambda polar_vars, j=j: stability_constraint(
+                    j, polar_vars, angles_deg=np.linspace(start=0, stop=180, num=NUM_GZ)
+                ),
+            }
+        )
+        constraints.append(
+            {
+                "type": "ineq",
+                "fun": lambda polar_vars, j=j: -1
+                * stability_constraint(
+                    j,
+                    polar_vars,
+                    angles_deg=np.linspace(start=-180, stop=0, num=NUM_GZ),
+                ),
+            }
+        )
+    result = minimize(
+        arch_area,
+        x0,
+        constraints=constraints,
+        method="SLSQP",
+        bounds=bounds,
+        callback=callback,
+    )
     if not result.success:
         print(result.message)
 
@@ -234,9 +280,12 @@ def optimize_polygon(n, R=1.0):
     plt.show()
 
     # Plot optimization progress
-    plot_optimization_progress(iteration_areas, iteration_angle_constraints, iteration_radius_constraints)
+    plot_optimization_progress(
+        iteration_areas, iteration_angle_constraints, iteration_radius_constraints
+    )
 
     return optimized_poly, -result.fun
+
 
 def plot_polygon(coords, R):
     """Plots the optimized polygon and the reference circle.
@@ -247,20 +296,21 @@ def plot_polygon(coords, R):
     """
     fig, ax = plt.subplots()
 
-    circle = plt.Circle((0, 0), R, color='blue', fill=False, linestyle='dashed')
+    circle = plt.Circle((0, 0), R, color="blue", fill=False, linestyle="dashed")
     ax.add_patch(circle)
 
     coords = np.vstack([coords, coords[0]])
 
-    plt.plot(coords[:, 0], coords[:, 1], 'ro-', label='Optimized Polygon')
+    plt.plot(coords[:, 0], coords[:, 1], "ro-", label="Optimized Polygon")
 
     ax.set_xlim(-R - 0.1, R + 0.1)
     ax.set_ylim(-R - 0.1, R + 0.1)
-    ax.set_aspect('equal')
+    ax.set_aspect("equal")
     plt.legend()
     plt.grid()
     plt.title("Optimized Polygon in Polar Coordinates")
     plt.show()
+
 
 def plot_optimization_progress(areas, angle_constraints, radius_constraints):
     """Plots the progress of the solver objective and constraints in separate subplots.
@@ -272,23 +322,24 @@ def plot_optimization_progress(areas, angle_constraints, radius_constraints):
     """
     fig, axs = plt.subplots(3, 1, figsize=(8, 12))
 
-    axs[0].plot(areas, 'b-o')
+    axs[0].plot(areas, "b-o")
     axs[0].set_title("Maximized Area")
     axs[0].set_xlabel("Iteration")
     axs[0].set_ylabel("Area")
 
-    axs[1].plot(angle_constraints, 'r--o')
+    axs[1].plot(angle_constraints, "r--o")
     axs[1].set_title("Angle Sum Constraint Violation")
     axs[1].set_xlabel("Iteration")
     axs[1].set_ylabel("Violation if negative")
 
-    axs[2].plot(radius_constraints, 'g--o')
+    axs[2].plot(radius_constraints, "g--o")
     axs[2].set_title("Radius Constraints Violation")
     axs[2].set_xlabel("Iteration")
     axs[2].set_ylabel("Violation if negative")
 
     plt.tight_layout()
     plt.show()
+
 
 # Example: Optimize for a hexagon
 n = 10  # Number of vertices
