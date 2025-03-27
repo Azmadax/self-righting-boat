@@ -54,8 +54,8 @@ class ParametricShapeFamily(str, enum.Enum):
 shape_family = ParametricShapeFamily.ELLIPSE
 
 
-def polar_vars_split(
-    polar_vars: list[float],
+def optim_vars_split(
+    optim_vars: list[float],
 ) -> tuple[list[float], list[float], list[float]]:
     """
     Optimisation variable vectors depends on the ShapeFamily
@@ -65,70 +65,70 @@ def polar_vars_split(
     -n distance of lower arch points
     -n lower arch thickness
     Args:
-        polar_vars:
+        optim_vars:
 
     Returns:
         list[float]: n polar angles with respect to origin
         list[float]: n distance from reference point lower_arch point
         list[float: n thicknesses of arch
     """
-    if len(polar_vars) == 2:
+    if len(optim_vars) == 2:
         # Circle case
         angles = np.deg2rad(np.arange(start=0, stop=91))
-        lower_arch_radius = polar_vars[0] + 0 * angles
-        arch_thickness = polar_vars[1] + 0 * angles
-    elif len(polar_vars) == 4:
+        lower_arch_radius = optim_vars[0] + 0 * angles
+        arch_thickness = optim_vars[1] + 0 * angles
+    elif len(optim_vars) == 4:
         if shape_family == ParametricShapeFamily.KIND_OF_ELLIPSE:
             # Ellipsis or close
             angles = np.deg2rad(np.arange(start=0, stop=91))
             lower_arch_radius = np.linspace(
-                start=polar_vars[0], stop=polar_vars[1], num=len(angles)
+                start=optim_vars[0], stop=optim_vars[1], num=len(angles)
             )
             arch_thickness = np.linspace(
-                start=polar_vars[2], stop=polar_vars[3], num=len(angles)
+                start=optim_vars[2], stop=optim_vars[3], num=len(angles)
             )
         elif shape_family == ParametricShapeFamily.ELLIPSE:
             # from center of ellipse
             # https: // math.stackexchange.com / questions / 315386 / ellipse - in -polar - coordinates
             angles = np.deg2rad(np.arange(start=0, stop=91))
-            if polar_vars[0] >= polar_vars[1]:
-                a = polar_vars[0]
-                b = polar_vars[1]
+            if optim_vars[0] >= optim_vars[1]:
+                a = optim_vars[0]
+                b = optim_vars[1]
                 e = np.sqrt(1 - b**2 / a**2)
                 lower_arch_radius = b / np.sqrt(1 - e**2 * np.cos(angles) ** 2)
             else:
-                a = polar_vars[1]
-                b = polar_vars[0]
+                a = optim_vars[1]
+                b = optim_vars[0]
                 e = np.sqrt(1 - b**2 / a**2)
                 lower_arch_radius = b / np.sqrt(1 - e**2 * np.sin(angles) ** 2)
-            if polar_vars[2] >= polar_vars[3]:
-                a = polar_vars[2]
-                b = polar_vars[3]
+            if optim_vars[2] >= optim_vars[3]:
+                a = optim_vars[2]
+                b = optim_vars[3]
                 e = np.sqrt(1 - b**2 / a**2)
                 arch_thickness = b / np.sqrt(1 - e**2 * np.cos(angles) ** 2)
             else:
-                a = polar_vars[3]
-                b = polar_vars[2]
+                a = optim_vars[3]
+                b = optim_vars[2]
                 e = np.sqrt(1 - b**2 / a**2)
                 arch_thickness = b / np.sqrt(1 - e**2 * np.sin(angles) ** 2)
     else:
-        n = (len(polar_vars) + 1) // 3
-        angles = [0] + [sum(polar_vars[:i]) for i in range(1, n)]
-        lower_arch_radius = polar_vars[n - 1 : 2 * n - 1]
-        arch_thickness = polar_vars[2 * n - 1 : 3 * n - 1]
+        n = (len(optim_vars) + 1) // 3
+        angles = [0] + [sum(optim_vars[:i]) for i in range(1, n)]
+        lower_arch_radius = optim_vars[n - 1 : 2 * n - 1]
+        arch_thickness = optim_vars[2 * n - 1 : 3 * n - 1]
     return angles, lower_arch_radius, arch_thickness
 
 
-def lower_arch(polar_vars: list[float]) -> list[list[float]]:
+def lower_arch(optim_vars: list[float]) -> list[list[float]]:
     """Generates the lower part of the arch based on polar variables.
 
     Args:
-        polar_vars (list): A list of polar variables representing the arch geometry.
+        optim_vars (list): A list of optimization variables representing the arch geometry.
 
     Returns:
         list: List of coordinates representing the lower part of arch (interior)
     """
-    angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
+    angles, lower_arch_radius, arch_thickness = optim_vars_split(optim_vars)
     lower_arc = [
         list(lower_arch_radius[i] * np.array([np.cos(angles[i]), np.sin(angles[i])]))
         for i in range(len(angles))
@@ -143,16 +143,16 @@ def lower_arch(polar_vars: list[float]) -> list[list[float]]:
     return lower_arc
 
 
-def upper_arch(polar_vars: list[float]) -> list[list[float]]:
+def upper_arch(optim_vars: list[float]) -> list[list[float]]:
     """Generates the upper part of the arch based on polar variables.
 
     Args:
-        polar_vars (list): A list of polar variables representing the arch geometry.
+        optim_vars (list): A list of optimization variables representing the arch geometry.
 
     Returns:
         list: List of coordinates representing the upper part of the arch (exterior).
     """
-    angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
+    angles, lower_arch_radius, arch_thickness = optim_vars_split(optim_vars)
     upper_arch = [
         list(
             (arch_thickness[i] + lower_arch_radius[i])
@@ -171,39 +171,39 @@ def upper_arch(polar_vars: list[float]) -> list[list[float]]:
     return upper_arch
 
 
-def arch(polar_vars: list[float]) -> list[list[float]]:
+def arch(optim_vars: list[float]) -> list[list[float]]:
     """Generates the full arch shape based on polar variables.
 
     Args:
-        polar_vars (list): A list of polar variables representing the arch geometry.
+        optim_vars (list): A list of optimization variables representing the arch geometry.
 
     Returns:
         list: List of coordinates representing the complete arch (upper + lower).
     """
-    lower_arc = lower_arch(polar_vars)
-    upper_arc = lower_arch(polar_vars)
+    lower_arc = lower_arch(optim_vars)
+    upper_arc = lower_arch(optim_vars)
 
     arch = upper_arc + list(reversed(lower_arc))
-    # x, y = Polygon(arch).exterior.xy
-    # plt.plot(x, y)
-    # plt.show()
+    x, y = Polygon(arch).exterior.xy
+    plt.plot(x, y)
+    plt.show()
     return list(reversed(arch))
 
 
-def arch_area(polar_vars: list[float]) -> float:
+def arch_area(optim_vars: list[float]) -> float:
     """Calculates the area of the arch.
     It is to be used in objective function weighted by corresponding weight and windage
 
     Args:
-        polar_vars (list): A list of polar variables representing the arch geometry.
+        optim_vars (list): A list of optimization variables representing the arch geometry.
 
     Returns:
         float: The area of the arch (negative value, since optimization minimizes).
     """
-    return Polygon(arch(polar_vars)).area
+    return Polygon(arch(optim_vars)).area
 
 
-def objective(polar_vars: list[float]):
+def objective(optim_vars: list[float]):
     """
     Define the objective of optimization function.
 
@@ -211,30 +211,30 @@ def objective(polar_vars: list[float]):
     Objective is also degraded close to constraints to help convergence by avoiding discontinuities
 
     Args:
-        polar_vars (list): A list of variables representing the arch geometry to be used as optimization variable
+        optim_vars (list): A list of variables representing the arch geometry to be used as optimization variable
 
     Returns:
         float: the value of objective function
     """
     angles_deg = np.arange(start=5, stop=175, step=ANGLE_GZ_STEP_DEG)
     stability_constraints = [
-        stability_constraint(polar_vars, angle_deg) for angle_deg in angles_deg
+        stability_constraint(optim_vars, angle_deg) for angle_deg in angles_deg
     ]
-    return arch_area(polar_vars) + np.sum(
+    return arch_area(optim_vars) + np.sum(
         np.clip(-np.array(stability_constraints) + 0.1, a_min=0, a_max=None)
     )
 
 
-def angle_sum_constraint(polar_vars: list[float]) -> float:
+def angle_sum_constraint(optim_vars: list[float]) -> float:
     """Ensures that the total sum of angles equals 180 degrees or 90 degrees with symmetry
 
     Args:
-        polar_vars (list): A list of polar variables representing the arch geometry.
+        optim_vars (list): A list of optimization variables representing the arch geometry.
 
     Returns:
         float: Difference between 180/90 degrees and the sum of the angles (last point must lie at 180°/90°)
     """
-    angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
+    angles, lower_arch_radius, arch_thickness = optim_vars_split(optim_vars)
 
     total_angle = np.pi
     if VERTICAL_SYM:
@@ -243,17 +243,17 @@ def angle_sum_constraint(polar_vars: list[float]) -> float:
     return total_angle - angles[-1]
 
 
-def outer_constraint(i: int, polar_vars: list[float]) -> float:
+def outer_constraint(i: int, optim_vars: list[float]) -> float:
     """Ensures that each point is at least a certain distance from the polygon (boat hull).
 
     Args:
         i (int): Index of the point to check.
-        polar_vars (list): A list of polar variables representing the arch geometry.
+        optim_vars (list): A list of optimization variables representing the arch geometry.
 
     Returns:
         float: Difference between the distance from the point to the polygon and the threshold.
     """
-    lower_arc = lower_arch(polar_vars)
+    lower_arc = lower_arch(optim_vars)
 
     def constraint(x, threshold=0.1):
         point = Point(x[0], x[1])
@@ -263,57 +263,29 @@ def outer_constraint(i: int, polar_vars: list[float]) -> float:
     return constraint(lower_arc[i])
 
 
-def stability_constraint(polar_vars: list[float], angle_deg: float) -> float:
-    """Ensures that the boat's righting arm curve is valid for stability at each angle.
+def stability_constraint(optim_vars: list[float], angle_deg: float) -> float:
+    """Ensures that the boat's righting arm curve is valid for stability at given angle.
 
     Args:
-        polar_vars (list): A list of polar variables representing the arch geometry.
+        optim_vars (list): A list of optimization variables representing the arch geometry.
         angle_deg: angle at which righting arm must be evaluated
 
     Returns:
         list: Righting arm curve for the given angle.
     """
 
-    arc = arch(polar_vars)
+    arc = arch(optim_vars)
     new_boat = join_polygons([my_boat, arc])
 
-    # eq = find_equilibrium_points(
-    #     curve_points=new_boat,
-    #     center_of_gravity=center_of_gravity,
-    #     target_area=target_area,
-    #     plot=True,
-    # )
-
-    try:
-        righting_arm_curves = compute_righting_arm_curve(
-            curve_points=new_boat,
-            center_of_gravity=center_of_gravity,
-            target_area=target_area,
-            angles_deg=[angle_deg],
-            plot=False,
-        )
-    except ValueError:
-        righting_arm_curves = [0]
-    # if righting_arm_curves[0] * np.sign(angles_deg[j]) < -0.001:
-    # x, y = Polygon(new_boat).exterior.xy
-    # plt.plot(x, y)
-    # plt.show()
-    return righting_arm_curves[0]
-
-
-def righting_arm_curve(polar_vars: list[float]) -> None:
-    center_of_gravity = [0, 0]
-    arc = arch(polar_vars)
-    new_boat = join_polygons([my_boat, arc])
-    angles_deg = range(-180, 182)
-    compute_righting_arm_curve(
+    righting_arm_curves = compute_righting_arm_curve(
         curve_points=new_boat,
         center_of_gravity=center_of_gravity,
         target_area=target_area,
-        angles_deg=angles_deg,
-        plot=True,
+        angles_deg=[angle_deg],
+        plot=False,
     )
 
+    return righting_arm_curves[0]
 
 def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[float]]:
     """Optimizes the placement of n points in polar coordinates to minimize arch polygon area
@@ -361,16 +333,16 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
     iteration_angle_constraints = []
     iteration_stability_constraints = []
 
-    def callback(polar_vars: list[float]) -> None:
+    def callback(optim_vars: list[float]) -> None:
         """Callback function to track optimization progress.
 
         Args:
-            polar_vars (list): The current values of the optimization variables (polar coordinates).
+            optim_vars (list): The current values of the optimization variables (polar coordinates).
         """
         global Nfeval
         Nfeval += 1
         if DEBUG:
-            arc = arch(polar_vars)
+            arc = arch(optim_vars)
             new_boat = join_polygons([my_boat, arc])
 
             try:
@@ -382,16 +354,16 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
                 )
             except ValueError:
                 print("invalid solution")
-        area = arch_area(polar_vars)
-        angle_constraint = angle_sum_constraint(polar_vars)
+        area = arch_area(optim_vars)
+        angle_constraint = angle_sum_constraint(optim_vars)
         angles_deg = np.arange(start=5, stop=175, step=ANGLE_GZ_STEP_DEG)
         stability_constraints = [
-            stability_constraint(polar_vars, angle_deg) for angle_deg in angles_deg
+            stability_constraint(optim_vars, angle_deg) for angle_deg in angles_deg
         ]
         if not (VERTICAL_SYM):
             angles_deg = np.arange(start=-5, stop=-175, step=-ANGLE_GZ_STEP_DEG)
             stability_constraints = stability_constraints + [
-                -1 * stability_constraint(polar_vars, angles_deg)
+                -1 * stability_constraint(optim_vars, angles_deg)
                 for angle_deg in angles_deg
             ]
 
@@ -402,7 +374,7 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         print("area: ", area)
         print("angle constrain: ", angle_constraint)
         print("stability constrain: ", stability_constraints)
-        print("polar var: ", polar_vars)
+        print("polar var: ", optim_vars)
 
     callback(x0)
 
@@ -414,7 +386,7 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
             constraints.append(
                 {
                     "type": "ineq",
-                    "fun": lambda polar_vars, i=i: outer_constraint(i, polar_vars),
+                    "fun": lambda optim_vars, i=i: outer_constraint(i, optim_vars),
                 }
             )
     angles_deg = np.arange(start=5, stop=175, step=ANGLE_GZ_STEP_DEG)
@@ -422,8 +394,8 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         constraints.append(
             {
                 "type": "ineq",
-                "fun": lambda polar_vars: stability_constraint(
-                    polar_vars, angle_deg=angle_deg
+                "fun": lambda optim_vars: stability_constraint(
+                    optim_vars, angle_deg=angle_deg
                 ),
             }
         )
@@ -433,8 +405,8 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
             constraints.append(
                 {
                     "type": "ineq",
-                    "fun": lambda polar_vars: -stability_constraint(
-                        polar_vars, angle_deg=angle_deg
+                    "fun": lambda optim_vars: -stability_constraint(
+                        optim_vars, angle_deg=angle_deg
                     ),
                 }
             )
