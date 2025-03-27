@@ -226,13 +226,13 @@ def objective(polar_vars: list[float]):
 
 
 def angle_sum_constraint(polar_vars: list[float]) -> float:
-    """Ensures that the total sum of angles equals 180 degrees.
+    """Ensures that the total sum of angles equals 180 degrees or 90 degrees with symmetry
 
     Args:
         polar_vars (list): A list of polar variables representing the arch geometry.
 
     Returns:
-        float: Difference between 180 degrees and the sum of the angles (last point must lie at 180°)
+        float: Difference between 180/90 degrees and the sum of the angles (last point must lie at 180°/90°)
     """
     angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
 
