@@ -44,6 +44,7 @@ class ParametricShapeFamily(str, enum.Enum):
         ELLIPSE: only to be used with symmetry
         POLAR: polar with n points
     """
+
     CIRCLE = "CIRCLE"
     KIND_OF_ELLIPSE = "KIND_OF_ELLIPSE"
     ELLIPSE = "ELLIPSE"
@@ -122,10 +123,10 @@ def lower_arch(polar_vars: list[float]) -> list[list[float]]:
     """Generates the lower part of the arch based on polar variables.
 
     Args:
-        polar_vars (list): A list of polar variables representing the boat's geometry.
+        polar_vars (list): A list of polar variables representing the arch geometry.
 
     Returns:
-        list: List of coordinates representing the lower arc.
+        list: List of coordinates representing the lower part of arch (interior)
     """
     angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
     lower_arc = [
@@ -142,17 +143,16 @@ def lower_arch(polar_vars: list[float]) -> list[list[float]]:
     return lower_arc
 
 
-def arch(polar_vars: list[float]) -> list[list[float]]:
-    """Generates the full arch shape based on polar variables.
+def upper_arch(polar_vars: list[float]) -> list[list[float]]:
+    """Generates the upper part of the arch based on polar variables.
 
     Args:
         polar_vars (list): A list of polar variables representing the arch geometry.
 
     Returns:
-        list: List of coordinates representing the full arch (upper + lower).
+        list: List of coordinates representing the upper part of the arch (exterior).
     """
     angles, lower_arch_radius, arch_thickness = polar_vars_split(polar_vars)
-    lower_arc = lower_arch(polar_vars)
     upper_arch = [
         list(
             (arch_thickness[i] + lower_arch_radius[i])
@@ -168,7 +168,22 @@ def arch(polar_vars: list[float]) -> list[list[float]]:
             )
             for i in reversed(range(len(angles)))
         ]
-    arch = upper_arch + list(reversed(lower_arc))
+    return upper_arch
+
+
+def arch(polar_vars: list[float]) -> list[list[float]]:
+    """Generates the full arch shape based on polar variables.
+
+    Args:
+        polar_vars (list): A list of polar variables representing the arch geometry.
+
+    Returns:
+        list: List of coordinates representing the complete arch (upper + lower).
+    """
+    lower_arc = lower_arch(polar_vars)
+    upper_arc = lower_arch(polar_vars)
+
+    arch = upper_arc + list(reversed(lower_arc))
     # x, y = Polygon(arch).exterior.xy
     # plt.plot(x, y)
     # plt.show()
@@ -177,6 +192,7 @@ def arch(polar_vars: list[float]) -> list[list[float]]:
 
 def arch_area(polar_vars: list[float]) -> float:
     """Calculates the area of the arch.
+    It is to be used in objective function weighted by corresponding weight and windage
 
     Args:
         polar_vars (list): A list of polar variables representing the arch geometry.
@@ -184,11 +200,22 @@ def arch_area(polar_vars: list[float]) -> float:
     Returns:
         float: The area of the arch (negative value, since optimization minimizes).
     """
-    # righting_arm_curve(polar_vars)
     return Polygon(arch(polar_vars)).area
 
 
 def objective(polar_vars: list[float]):
+    """
+    Define the objective of optimization function.
+
+    It is a bit of kitchen with main contributor being the weight and windage contribution of arch, through arch area (in 2D)
+    Objective is also degraded close to constraints to help convergence by avoiding discontinuities
+
+    Args:
+        polar_vars (list): A list of variables representing the arch geometry to be used as optimization variable
+
+    Returns:
+        float: the value of objective function
+    """
     angles_deg = np.arange(start=5, stop=175, step=ANGLE_GZ_STEP_DEG)
     stability_constraints = [
         stability_constraint(polar_vars, angle_deg) for angle_deg in angles_deg
@@ -319,8 +346,8 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         thickness = [1]
         bounds = [(0.1, R) for _ in range(1)] + [(0.1, R) for _ in range(1)]
     elif (
-            shape_family == ParametricShapeFamily.KIND_OF_ELLIPSE
-            or shape_family == ParametricShapeFamily.ELLIPSE
+        shape_family == ParametricShapeFamily.KIND_OF_ELLIPSE
+        or shape_family == ParametricShapeFamily.ELLIPSE
     ):
         angle_diffs = []  # For circle and ellipse
         radii = [1, 1]
