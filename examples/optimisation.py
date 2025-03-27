@@ -36,21 +36,30 @@ polygon = Polygon(my_boat)
 target_area = 0.9
 
 
-class ShapeFamily(str, enum.Enum):
+class ParametricShapeFamily(str, enum.Enum):
+    """
+    Define the different family of shape used as base for optimization
+        CIRCLE : only to be used with symmetry
+        KIND_OF_ELLIPSE: polar radius is interpolated only to be used with symmetry
+        ELLIPSE: only to be used with symmetry
+        POLAR: polar with n points
+    """
     CIRCLE = "CIRCLE"
     KIND_OF_ELLIPSE = "KIND_OF_ELLIPSE"
     ELLIPSE = "ELLIPSE"
     POLAR = "POLAR"
 
 
-shape_family = ShapeFamily.ELLIPSE
+shape_family = ParametricShapeFamily.ELLIPSE
 
 
 def polar_vars_split(
     polar_vars: list[float],
 ) -> tuple[list[float], list[float], list[float]]:
     """
-    Optimisation variable vectors is composed of:
+    Optimisation variable vectors depends on the ShapeFamily
+
+    is composed of:
     -n-1 angles differences
     -n distance of lower arch points
     -n lower arch thickness
@@ -68,7 +77,7 @@ def polar_vars_split(
         lower_arch_radius = polar_vars[0] + 0 * angles
         arch_thickness = polar_vars[1] + 0 * angles
     elif len(polar_vars) == 4:
-        if shape_family == ShapeFamily.KIND_OF_ELLIPSE:
+        if shape_family == ParametricShapeFamily.KIND_OF_ELLIPSE:
             # Ellipsis or close
             angles = np.deg2rad(np.arange(start=0, stop=91))
             lower_arch_radius = np.linspace(
@@ -77,7 +86,7 @@ def polar_vars_split(
             arch_thickness = np.linspace(
                 start=polar_vars[2], stop=polar_vars[3], num=len(angles)
             )
-        elif shape_family == ShapeFamily.ELLIPSE:
+        elif shape_family == ParametricShapeFamily.ELLIPSE:
             # from center of ellipse
             # https: // math.stackexchange.com / questions / 315386 / ellipse - in -polar - coordinates
             angles = np.deg2rad(np.arange(start=0, stop=91))
@@ -295,7 +304,7 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
     else:
         factor = 1
 
-    if shape_family == ShapeFamily.POLAR:
+    if shape_family == ParametricShapeFamily.POLAR:
         angle_diffs = [np.pi * factor / (n - 1) for i in range(n - 1)]
         radii = [R for i in range(n)]
         thickness = radii
@@ -304,14 +313,14 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
             + [(0.1, R) for _ in range(n)]
             + [(0.1, R) for _ in range(n)]
         )
-    elif shape_family == ShapeFamily.CIRCLE:
+    elif shape_family == ParametricShapeFamily.CIRCLE:
         angle_diffs = []  # For circle and ellipse
         radii = [1]
         thickness = [1]
         bounds = [(0.1, R) for _ in range(1)] + [(0.1, R) for _ in range(1)]
     elif (
-        shape_family == ShapeFamily.KIND_OF_ELLIPSE
-        or shape_family == ShapeFamily.ELLIPSE
+            shape_family == ParametricShapeFamily.KIND_OF_ELLIPSE
+            or shape_family == ParametricShapeFamily.ELLIPSE
     ):
         angle_diffs = []  # For circle and ellipse
         radii = [1, 1]
@@ -372,7 +381,7 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
 
     # Constraints
     constraints = []
-    if shape_family == ShapeFamily.POLAR:
+    if shape_family == ParametricShapeFamily.POLAR:
         constraints.append({"type": "eq", "fun": angle_sum_constraint})
         for i in range(n):
             constraints.append(
