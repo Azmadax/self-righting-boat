@@ -18,7 +18,7 @@ VERTICAL_SYM = True
 
 
 ANGLE_GZ_STEP_DEG = 5
-GZ_MARGIN=0.1
+GZ_MARGIN = 0.1
 center_of_gravity = [0, -0.2]
 matplotlib.use("QtAgg")
 
@@ -41,13 +41,11 @@ class ParametricShapeFamily(str, enum.Enum):
     """
     Define the different family of shape used as base for optimization
         CIRCLE : only to be used with symmetry
-        KIND_OF_ELLIPSE: polar radius is interpolated only to be used with symmetry
         ELLIPSE: only to be used with symmetry
         POLAR: polar with n points
     """
 
     CIRCLE = "CIRCLE"
-    KIND_OF_ELLIPSE = "KIND_OF_ELLIPSE"
     ELLIPSE = "ELLIPSE"
     POLAR = "POLAR"
 
@@ -59,6 +57,8 @@ def optim_vars_split(
     optim_vars: list[float],
 ) -> tuple[list[float], list[float], list[float]]:
     """
+    Maps the optimization variable vectors to the polar coordinates
+
     Optimisation variable vectors depends on the ShapeFamily
 
     is composed of:
@@ -73,50 +73,48 @@ def optim_vars_split(
         list[float]: n distance from reference point lower_arch point
         list[float: n thicknesses of arch
     """
-    if len(optim_vars) == 2:
-        # Circle case
-        angles = np.deg2rad(np.arange(start=0, stop=91))
-        lower_arch_radius = optim_vars[0] + 0 * angles
-        arch_thickness = optim_vars[1] + 0 * angles
-    elif len(optim_vars) == 4:
-        if shape_family == ParametricShapeFamily.KIND_OF_ELLIPSE:
-            # Ellipsis or close
-            angles = np.deg2rad(np.arange(start=0, stop=91))
-            lower_arch_radius = np.linspace(
-                start=optim_vars[0], stop=optim_vars[1], num=len(angles)
-            )
-            arch_thickness = np.linspace(
-                start=optim_vars[2], stop=optim_vars[3], num=len(angles)
-            )
-        elif shape_family == ParametricShapeFamily.ELLIPSE:
-            # from center of ellipse
-            # https: // math.stackexchange.com / questions / 315386 / ellipse - in -polar - coordinates
-            angles = np.deg2rad(np.arange(start=0, stop=91))
-            if optim_vars[0] >= optim_vars[1]:
-                a = optim_vars[0]
-                b = optim_vars[1]
-                e = np.sqrt(1 - b**2 / a**2)
-                lower_arch_radius = b / np.sqrt(1 - e**2 * np.cos(angles) ** 2)
+
+    match shape_family:
+        case ParametricShapeFamily.CIRCLE:
+            if len(optim_vars) == 2:
+                # Circle case
+                angles = np.deg2rad(np.arange(start=0, stop=91))
+                lower_arch_radius = optim_vars[0] + 0 * angles
+                arch_thickness = optim_vars[1] + 0 * angles
             else:
-                a = optim_vars[1]
-                b = optim_vars[0]
-                e = np.sqrt(1 - b**2 / a**2)
-                lower_arch_radius = b / np.sqrt(1 - e**2 * np.sin(angles) ** 2)
-            if optim_vars[2] >= optim_vars[3]:
-                a = optim_vars[2]
-                b = optim_vars[3]
-                e = np.sqrt(1 - b**2 / a**2)
-                arch_thickness = b / np.sqrt(1 - e**2 * np.cos(angles) ** 2)
+                raise ValueError("For circle, two optimization variables are expected")
+        case ParametricShapeFamily.ELLIPSE:
+            if len(optim_vars) == 4:
+                # from center of ellipse
+                # https: // math.stackexchange.com / questions / 315386 / ellipse - in -polar - coordinates
+                angles = np.deg2rad(np.arange(start=0, stop=91))
+                if optim_vars[0] >= optim_vars[1]:
+                    a = optim_vars[0]
+                    b = optim_vars[1]
+                    e = np.sqrt(1 - b**2 / a**2)
+                    lower_arch_radius = b / np.sqrt(1 - e**2 * np.cos(angles) ** 2)
+                else:
+                    a = optim_vars[1]
+                    b = optim_vars[0]
+                    e = np.sqrt(1 - b**2 / a**2)
+                    lower_arch_radius = b / np.sqrt(1 - e**2 * np.sin(angles) ** 2)
+                if optim_vars[2] >= optim_vars[3]:
+                    a = optim_vars[2]
+                    b = optim_vars[3]
+                    e = np.sqrt(1 - b**2 / a**2)
+                    arch_thickness = b / np.sqrt(1 - e**2 * np.cos(angles) ** 2)
+                else:
+                    a = optim_vars[3]
+                    b = optim_vars[2]
+                    e = np.sqrt(1 - b**2 / a**2)
+                    arch_thickness = b / np.sqrt(1 - e**2 * np.sin(angles) ** 2)
             else:
-                a = optim_vars[3]
-                b = optim_vars[2]
-                e = np.sqrt(1 - b**2 / a**2)
-                arch_thickness = b / np.sqrt(1 - e**2 * np.sin(angles) ** 2)
-    else:
-        n = (len(optim_vars) + 1) // 3
-        angles = [0] + [sum(optim_vars[:i]) for i in range(1, n)]
-        lower_arch_radius = optim_vars[n - 1 : 2 * n - 1]
-        arch_thickness = optim_vars[2 * n - 1 : 3 * n - 1]
+                raise ValueError("For ellipse, 4 optimization variables are expected")
+        case ParametricShapeFamily.POLAR:
+            n = (len(optim_vars) + 1) // 3
+            angles = [0] + [sum(optim_vars[:i]) for i in range(1, n)]
+            lower_arch_radius = optim_vars[n - 1 : 2 * n - 1]
+            arch_thickness = optim_vars[2 * n - 1 : 3 * n - 1]
     return angles, lower_arch_radius, arch_thickness
 
 
@@ -289,6 +287,7 @@ def stability_constraint(optim_vars: list[float], angle_deg: float) -> float:
 
     return righting_arm_curves[0]
 
+
 def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[float]]:
     """Optimizes the placement of points in polar coordinates to minimize arch polygon area
     while ensuring the GZ is always restoring initial position at heel=0°.
@@ -305,28 +304,26 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
     else:
         factor = 1
 
-    if shape_family == ParametricShapeFamily.POLAR:
-        angle_diffs = [np.pi * factor / (n - 1) for i in range(n - 1)]
-        radii = [R for i in range(n)]
-        thickness = radii
-        bounds = (
-            [(np.pi * factor / (n - 1) / 2, np.pi * factor) for _ in range(n - 1)]
-            + [(0.1, R) for _ in range(n)]
-            + [(0.1, R) for _ in range(n)]
-        )
-    elif shape_family == ParametricShapeFamily.CIRCLE:
-        angle_diffs = []  # For circle and ellipse
-        radii = [1]
-        thickness = [1]
-        bounds = [(0.1, R) for _ in range(1)] + [(0.1, R) for _ in range(1)]
-    elif (
-        shape_family == ParametricShapeFamily.KIND_OF_ELLIPSE
-        or shape_family == ParametricShapeFamily.ELLIPSE
-    ):
-        angle_diffs = []  # For circle and ellipse
-        radii = [1, 1]
-        thickness = [1, 1]
-        bounds = [(0.1, R) for _ in range(2)] + [(0.1, R) for _ in range(2)]
+    match shape_family:
+        case ParametricShapeFamily.POLAR:
+            angle_diffs = [np.pi * factor / (n - 1) for i in range(n - 1)]
+            radii = [R for i in range(n)]
+            thickness = radii
+            bounds = (
+                [(np.pi * factor / (n - 1) / 2, np.pi * factor) for _ in range(n - 1)]
+                + [(0.1, R) for _ in range(n)]
+                + [(0.1, R) for _ in range(n)]
+            )
+        case ParametricShapeFamily.CIRCLE:
+            angle_diffs = []  # For circle and ellipse
+            radii = [1]
+            thickness = [1]
+            bounds = [(0.1, R) for _ in range(1)] + [(0.1, R) for _ in range(1)]
+        case ParametricShapeFamily.ELLIPSE:
+            angle_diffs = []  # For circle and ellipse
+            radii = [1, 1]
+            thickness = [1, 1]
+            bounds = [(0.1, R) for _ in range(2)] + [(0.1, R) for _ in range(2)]
 
     x0 = np.concatenate([angle_diffs, radii, thickness])
 
@@ -342,7 +339,7 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
             optim_vars (list): The current values of the optimization variables.
         """
         global Nfeval
-        Nfeval += 1 # Use to print iteration number live
+        Nfeval += 1  # Use to print iteration number live
         if DEBUG:
             arc = arch(optim_vars)
             new_boat = join_polygons([my_boat, arc])
