@@ -18,6 +18,7 @@ VERTICAL_SYM = True
 
 
 ANGLE_GZ_STEP_DEG = 5
+GZ_MARGIN=0.1
 center_of_gravity = [0, -0.2]
 matplotlib.use("QtAgg")
 
@@ -181,12 +182,13 @@ def arch(optim_vars: list[float]) -> list[list[float]]:
         list: List of coordinates representing the complete arch (upper + lower).
     """
     lower_arc = lower_arch(optim_vars)
-    upper_arc = lower_arch(optim_vars)
+    upper_arc = upper_arch(optim_vars)
 
     arch = upper_arc + list(reversed(lower_arc))
-    x, y = Polygon(arch).exterior.xy
-    plt.plot(x, y)
-    plt.show()
+    if DEBUG:
+        x, y = Polygon(arch).exterior.xy
+        plt.plot(x, y)
+        plt.show()
     return list(reversed(arch))
 
 
@@ -221,7 +223,7 @@ def objective(optim_vars: list[float]):
         stability_constraint(optim_vars, angle_deg) for angle_deg in angles_deg
     ]
     return arch_area(optim_vars) + np.sum(
-        np.clip(-np.array(stability_constraints) + 0.1, a_min=0, a_max=None)
+        np.clip(-np.array(stability_constraints) + GZ_MARGIN, a_min=0, a_max=None)
     )
 
 
@@ -288,8 +290,8 @@ def stability_constraint(optim_vars: list[float], angle_deg: float) -> float:
     return righting_arm_curves[0]
 
 def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[float]]:
-    """Optimizes the placement of n points in polar coordinates to minimize arch polygon area
-    while ensuring the GZ is positive for positive angles and negative for negative angles.
+    """Optimizes the placement of points in polar coordinates to minimize arch polygon area
+    while ensuring the GZ is always restoring initial position at heel=0°.
 
     Args:
         n (int): Number of points (vertices) in the polygon.
@@ -337,23 +339,21 @@ def optimize_polygon(n: int, R: float = 1.0) -> tuple[list[list[float]], list[fl
         """Callback function to track optimization progress.
 
         Args:
-            optim_vars (list): The current values of the optimization variables (polar coordinates).
+            optim_vars (list): The current values of the optimization variables.
         """
         global Nfeval
-        Nfeval += 1
+        Nfeval += 1 # Use to print iteration number live
         if DEBUG:
             arc = arch(optim_vars)
             new_boat = join_polygons([my_boat, arc])
 
-            try:
-                find_equilibrium_points(
-                    curve_points=new_boat,
-                    center_of_gravity=center_of_gravity,
-                    target_area=target_area,
-                    plot=True,
-                )
-            except ValueError:
-                print("invalid solution")
+            find_equilibrium_points(
+                curve_points=new_boat,
+                center_of_gravity=center_of_gravity,
+                target_area=target_area,
+                plot=True,
+            )
+
         area = arch_area(optim_vars)
         angle_constraint = angle_sum_constraint(optim_vars)
         angles_deg = np.arange(start=5, stop=175, step=ANGLE_GZ_STEP_DEG)
@@ -449,8 +449,8 @@ def plot_polygon(coords: list[list[float]], R: float) -> None:
     """Plots the optimized polygon and the reference circle.
 
     Args:
-        coords (ndarray): Optimized polygon coordinates.
-        R (float): Radius of the reference circle.
+        coords (ndarray): Optimized polygon cartesian coordinates.
+        R (float): Radius of the reference circle [m]
     """
     fig, ax = plt.subplots()
 
