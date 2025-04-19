@@ -327,10 +327,6 @@ def compute_righting_arm(
     )
 
     if plot:
-        # Output results
-        print(f"Submerged Area (Volume): {area}")
-        print(f"Center of buoyancy: ({cx}, {cy})")
-
         # (Optional) Plot the curve and submerged region
         curve_x, curve_y = zip(*shifted_points)
         plt.fill(curve_x, curve_y, color="red", alpha=0.1, edgecolor="black")
